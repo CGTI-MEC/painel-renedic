@@ -133,6 +133,10 @@ h2{font-family:var(--f-display);font-weight:700;font-size:17px;margin:0;text-wra
 .regs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .reg{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:6px}
 .reg:hover{border-color:#322E7A}
+.ftag{display:inline-block;vertical-align:3px;margin-left:6px;font-family:var(--f-body);font-size:12px;font-weight:600;letter-spacing:0;color:#322E7A;background:color-mix(in srgb,#322E7A 10%,var(--surface));border:1px solid color-mix(in srgb,#322E7A 30%,transparent);border-radius:999px;padding:2px 10px;max-width:100%;white-space:normal}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ftag{color:#C9C5FF}}
+:root[data-theme="dark"] .ftag{color:#C9C5FF}
+.reg.vazio .pc{color:var(--muted)}
 .reg.fixo{cursor:default}.reg.fixo:hover{border-color:var(--line)}
 .mun-drop{min-width:300px;padding:8px}
 .mun-drop .inp{width:100%;margin-bottom:6px}
@@ -241,25 +245,25 @@ tbody tr:hover{background:var(--surface-2)}
   </section>
 
   <section class="panel" aria-label="Status das redes" hidden>
-    <div class="hd"><div><h2>Em que ponto estão as redes</h2><p class="sub">Clique em um card para filtrar. Clique de novo para remover só esse filtro.</p></div></div>
+    <div class="hd"><div><h2>Em que ponto estão as redes <span class="ftag" id="ft-st" hidden></span></h2><p class="sub">Clique em um card para filtrar. Clique de novo para remover só esse filtro.</p></div></div>
     <div class="headline"><span class="big num" id="hl-p"></span><span class="txt" id="hl-t"></span></div>
     <div class="stack" id="stack" aria-hidden="true"></div>
     <div class="cards" id="cards"></div>
   </section>
 
   <section class="panel" aria-label="Regiões" hidden>
-    <div class="hd"><div><h2>Por região</h2><p class="sub" id="reg-sub">% de redes que já enviaram ao MEC · clique para filtrar</p></div></div>
+    <div class="hd"><div><h2>Por região <span class="ftag" id="ft-reg" hidden></span></h2><p class="sub" id="reg-sub">% de redes que já enviaram ao MEC · clique para filtrar</p></div></div>
     <div class="regs" id="regs"></div>
   </section>
 
   <section class="duo" hidden>
     <div class="panel" id="mapa">
-      <div class="hd"><div><h2>Mapa por UF</h2><p class="sub" id="map-sub">Cor = % enviado ao MEC · clique na UF para filtrar</p></div></div>
+      <div class="hd"><div><h2>Mapa por UF <span class="ftag" id="ft-map" hidden></span></h2><p class="sub" id="map-sub">Cor = % enviado ao MEC · clique na UF para filtrar</p></div></div>
       <div id="map-svg"></div>
       <div class="legend"><span>0%</span><span class="grad" id="grad"></span><span>100%</span></div>
     </div>
     <div class="panel" id="curva">
-      <div class="hd"><div><h2>Curva de evolução</h2><p class="sub">Redes com indicação enviada ao MEC (Em análise), acumulado por dia</p></div></div>
+      <div class="hd"><div><h2>Curva de evolução <span class="ftag" id="ft-cur" hidden></span></h2><p class="sub">Redes com indicação enviada ao MEC (Em análise), acumulado por dia</p></div></div>
       <div id="curva-svg"></div>
       <p class="cnote">Cada dia mostra o total da última atualização daquele dia. Para os dias anteriores ao início do acompanhamento, a data considerada é a do termo aceito.</p>
     </div>
@@ -267,7 +271,7 @@ tbody tr:hover{background:var(--surface-2)}
 
   <section class="panel" aria-label="Tabela de redes" hidden>
     <div class="hd">
-      <div><h2>Redes</h2><p class="sub num" id="t-count"></p></div>
+      <div><h2>Redes <span class="ftag" id="ft-tab" hidden></span></h2><p class="sub num" id="t-count"></p></div>
       <div class="frow"><button class="btn" id="ex-x" onclick="exportar('xlsx')">Baixar Excel</button><button class="btn" id="ex-c" onclick="exportar('csv')">Baixar CSV</button></div>
     </div>
     <div id="tabela"></div>
@@ -504,6 +508,7 @@ function renderRegs(){
     var c=cnt(base().filter(function(r){return r.reg===rg&&pass(r,'regst');}));
     var sel=S.st.length?S.st.reduce(function(a,k){return a+c[k];},0):c.ea;
     var o=S.reg.indexOf(rg)>=0;var outT=S.terr&&TERR[S.terr].indexOf(rg)<0;
+    if(c.t===0)return '<button class="reg vazio dim'+(ehPub()?' fixo':'')+'" data-r="'+rg+'"'+(ehPub()?' tabindex="-1"':'')+'><span class="nm">'+rg+'</span><span class="pc">—</span><span class="ni">Sem redes no filtro atual</span></button>';
     return '<button class="reg'+(ehPub()?' fixo':'')+(o?' on':((S.reg.length||outT)?' dim':''))+'" data-r="'+rg+'"'+(ehPub()?' tabindex="-1"':'')+'><span class="nm">'+rg+'</span><span class="pc num">'+pf(sel,c.t)+' <small>'+(S.st.length?fmt(sel)+' no status filtrado':'enviado')+'</small></span><span class="mini">'+['ea','ep','ta','tna','ni'].map(function(k){return '<i style="width:'+pct(c[k],c.t)+'%;background:var('+STC[k]+')"></i>';}).join('')+'</span><span class="ni num"><b>'+fmt(c.ni)+'</b> não iniciaram · '+fmt(c.and)+' em andamento</span><span class="ni num">'+fmt(c.t)+' redes</span></button>';
   }).join('');
   if(!ehPub())document.querySelectorAll('.reg').forEach(function(b){b.onclick=function(){var v=b.dataset.r;if(S.reg.indexOf(v)>=0)S.reg=S.reg.filter(function(x){return x!==v;});else{S.reg.push(v);if(S.terr&&TERR[S.terr].indexOf(v)<0)S.terr='';}S.page=1;render();};});
@@ -658,7 +663,29 @@ function renderTopo(){
   else{el.className='prazo';el.innerHTML='<span class="d num">'+dias+'</span><span class="l">'+(dias===1?'dia restante':'dias restantes')+'<br>prazo até '+brData(iso)+'</span>';}
 }
 function setTab(t){if(t==='E'&&S.nivel!=='adm')return;S.tab=t;S.uf=[];S.mun=[];S.munQ='';S.lista=null;S.geo=[];S.esc=[];S.q='';S.st=[];S.page=1;document.getElementById('busca').value='';['M','E'].forEach(function(k){document.getElementById('tab-'+k).setAttribute('aria-selected',k===t);});render();}
-function render(){renderTopo();renderFiltros();renderCards();renderRegs();renderMapa();renderCurva();renderTabela();}
+/* Etiqueta nos títulos: resume os filtros que afetam cada seção */
+function lst(a,muitos,fn){if(!a.length)return null;if(a.length<=3)return a.map(fn||function(x){return x;}).join(', ');return a.length+' '+muitos;}
+function resumo(skip){
+  var semReg=skip==='regst', semUf=skip==='ust', semSt=skip==='st'||skip==='regst'||skip==='ust', p=[];
+  if(!semReg){if(S.terr)p.push(S.terr);var r=lst(S.reg,'regiões');if(r)p.push(r);}
+  if(!semUf){var u=lst(S.uf,'UFs');if(u)p.push(u);}
+  var m=lst(S.mun,'municípios',function(i){return MUN_BY[i]?MUN_BY[i].mun:i;});if(m)p.push(m);
+  if(S.lista)p.push('lista de '+fmt(Object.keys(S.lista).length)+' municípios');
+  if(S.q)p.push('busca “'+S.q+'”');
+  if(!semSt){var s=lst(S.st,'status',function(k){return ST[k];});if(s)p.push(s);}
+  if(veCenso()){S.geo.forEach(function(k){p.push(GEO[k]);});var e=lst(S.esc,'marcações do Censo',function(k){return ESC[k].replace('Possui escola ','escola ');});if(e)p.push(e);}
+  return p.join(' · ');
+}
+function renderTags(){
+  var set=function(id,txt){var el=document.getElementById(id);el.textContent=txt||'';el.hidden=!txt;el.title=txt?'Filtros aplicados nesta seção':'';};
+  set('ft-st',resumo('st'));
+  set('ft-reg',resumo('regst'));
+  var mp=resumo('ust');if(S.uf.length)mp=(mp?mp+' · ':'')+(S.uf.length<=3?S.uf.join(', '):S.uf.length+' UFs')+' em destaque';
+  set('ft-map',mp);
+  set('ft-cur',resumo('st'));
+  set('ft-tab',resumo(''));
+}
+function render(){renderTopo();renderFiltros();renderCards();renderRegs();renderMapa();renderCurva();renderTabela();renderTags();}
 
 carregar(true);
 setInterval(function(){carregar(false);},10*60*1000); /* busca dados novos a cada 10 minutos */
