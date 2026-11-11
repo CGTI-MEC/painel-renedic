@@ -515,7 +515,7 @@ function renderTabela(){
   var rows=filtradas();
   document.getElementById('t-count').textContent=fmt(rows.length)+' redes no filtro atual';
   var lib=liberado();
-  ['ex-x','ex-c'].forEach(function(id){var b=document.getElementById(id);b.disabled=!lib||!rows.length;b.style.opacity=(lib&&rows.length)?1:.5;b.title=lib?'':'Aplique um filtro de Território, Região ou UF para baixar';});
+  ['ex-x','ex-c'].forEach(function(id){var b=document.getElementById(id);b.setAttribute('aria-disabled',String(!lib||!rows.length));b.style.opacity=(lib&&rows.length)?1:.5;b.title=lib?'':'Aplique um filtro de Território, Região ou UF para baixar';});
   var el=document.getElementById('tabela');
   if(!lib){el.innerHTML='<div class="lock"><strong>Escolha um Território, Região ou UF para ver a lista de redes</strong><span>Os números acima já refletem os filtros. A lista e o download aparecem depois desse recorte.</span></div>';return;}
   if(!rows.length){el.innerHTML='<div class="lock"><strong>Nenhuma rede neste filtro</strong></div>';return;}
@@ -526,8 +526,8 @@ function renderTabela(){
   var m=document.getElementById('mais');if(m)m.onclick=function(){S.page++;renderTabela();};
 }
 function exportar(tipo){
-  if(!liberado())return;
-  var rows=filtradas();if(!rows.length)return;var M=S.tab==='M';
+  if(!liberado()){toast('Escolha um Território, Região ou UF para baixar');return;}
+  var rows=filtradas();if(!rows.length){toast('Nenhuma rede neste filtro');return;}var M=S.tab==='M';
   var cab=['UF','UF (nome)'].concat(M?['Município','Código IBGE']:['Rede']).concat(['Região','Território','Situação','Status SIMEC','Etapa','Termo aceito em']);
   if(S.admin&&M)cab=cab.concat(['Capital','Marajó'],Object.keys(ESC).map(function(k){return ESC[k];}));
   var linhas=rows.map(function(r){
@@ -543,13 +543,21 @@ function exportar(tipo){
     ws['!cols']=cab.map(function(c,i){return{wch:Math.min(45,Math.max(c.length,i===2?28:10)+2)};});
     var info=XLSX.utils.aoa_to_sheet([['Painel Renedic'],['Dados atualizados em',META.atualizado_em],['Filtros aplicados',descFiltros()],['Redes',rows.length]]);
     var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Redes');XLSX.utils.book_append_sheet(wb,info,'Sobre');
-    XLSX.writeFile(wb,nome+'.xlsx');
+    var bin=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    baixarArquivo(new Blob([bin],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),nome+'.xlsx');
   }else{
     var q=function(v){v=String(v==null?'':v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
     var csv='﻿'+[cab].concat(linhas).map(function(l){return l.map(q).join(';');}).join('\r\n');
-    var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=nome+'.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
+    baixarArquivo(new Blob([csv],{type:'text/csv;charset=utf-8'}),nome+'.csv');
   }
   toast('Baixando '+fmt(rows.length)+' redes');
+}
+function baixarArquivo(blob,nome){
+  if(window.navigator&&window.navigator.msSaveOrOpenBlob){window.navigator.msSaveOrOpenBlob(blob,nome);return;}
+  var url=URL.createObjectURL(blob);var a=document.createElement('a');
+  a.href=url;a.download=nome;a.style.display='none';document.body.appendChild(a);a.click();
+  /* só libera o arquivo da memória depois de 1 minuto, para dar tempo do download terminar */
+  setTimeout(function(){URL.revokeObjectURL(url);a.remove();},60000);
 }
 function descFiltros(){
   var p=[];if(S.terr)p.push('Território: '+S.terr);if(S.reg.length)p.push('Região: '+S.reg.join(', '));if(S.uf.length)p.push('UF: '+S.uf.join(', '));
