@@ -133,6 +133,11 @@ h2{font-family:var(--f-display);font-weight:700;font-size:17px;margin:0;text-wra
 .regs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .reg{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:6px}
 .reg:hover{border-color:#322E7A}
+.reg.fixo{cursor:default}.reg.fixo:hover{border-color:var(--line)}
+.mun-drop{min-width:300px;padding:8px}
+.mun-drop .inp{width:100%;margin-bottom:6px}
+.mun-drop .info{font-size:12px;color:var(--muted);padding:4px 8px}
+.mun-drop .sel{border-bottom:1px solid var(--line);margin-bottom:4px;padding-bottom:4px}
 .reg.on{border-color:#322E7A;box-shadow:inset 0 0 0 1.5px #322E7A}
 .reg.dim{opacity:.55}
 .reg .nm{font-weight:600}
@@ -189,7 +194,7 @@ tbody tr:hover{background:var(--surface-2)}
 <header class="top">
   <div class="wrap">
     <div class="top-row">
-      <div class="brand"><b>Renedic</b><span>Painel de adesão das redes de ensino</span><span class="admin-tag" id="badge-admin" hidden>EQUIPE</span></div>
+      <div class="brand"><b>Renedic</b><span>Painel de adesão das redes de ensino</span><span class="admin-tag" id="badge-admin" hidden></span></div>
       <div class="stamp">Atualizado em <strong class="num" id="stamp">—</strong><br>Fonte: SIMEC · Status de adesão detalhado</div>
     </div>
     <div class="top-row">
@@ -212,12 +217,13 @@ tbody tr:hover{background:var(--surface-2)}
   <div class="panel lock" id="carregando"><strong>Carregando dados…</strong></div>
 
   <section class="panel filtros" aria-label="Filtros" hidden>
-    <div class="frow"><span class="flbl">Território</span>
+    <div class="frow" id="row-terr" hidden><span class="flbl">Território</span>
       <div class="seg2" id="terr"></div>
     </div>
     <div class="frow"><span class="flbl">Recortes</span>
       <div class="ms" id="ms-reg"></div>
       <div class="ms" id="ms-uf"></div>
+      <div class="ms" id="ms-mun"></div>
       <div class="ms" id="ms-st"></div>
       <input class="inp" id="busca" placeholder="Buscar município ou código IBGE" style="flex:1 1 220px">
       <button class="btn" id="btn-lista" onclick="toggleLista()">Colar lista</button>
@@ -227,7 +233,7 @@ tbody tr:hover{background:var(--surface-2)}
       <textarea class="inp" id="lista-txt" placeholder="Ex.:&#10;2304400&#10;Bom Jesus/PI&#10;Feijó"></textarea>
       <div class="frow"><button class="btn pri" onclick="aplicarLista()">Aplicar lista</button><button class="btn" onclick="limparLista()">Remover lista</button><span class="res" id="lista-res"></span></div>
     </div>
-    <div class="frow admin-row" id="adm-row" hidden><span class="flbl"><span class="admin-tag">EQUIPE</span></span>
+    <div class="frow admin-row" id="adm-row" hidden><span class="flbl">Censo</span>
       <div class="ms" id="ms-geo"></div>
       <div class="ms" id="ms-esc"></div>
     </div>
@@ -292,7 +298,10 @@ var GEO={cap:'Capital',maj:'Arquipélago do Marajó'};
 var ESC={q:'Possui escola quilombola',i:'Possui escola indígena',c:'Possui escola do campo',r:'Possui escola rural',mr:'Majoritariamente rural (mais de 50% das escolas)',as:'Possui escola em assentamento',tr:'Possui escola em comunidade tradicional'};
 
 var ROWS=[],CFG={},META={},FLAGC={};
-var S={tab:'M',admin:false,terr:'',reg:[],uf:[],st:[],q:'',lista:null,geo:[],esc:[],page:1};
+/* nivel: 'pub' (link público), 'terr' (Territorial), 'adm' (Completa/equipe) */
+var S={tab:'M',nivel:'pub',admin:false,terr:'',reg:[],uf:[],mun:[],munQ:'',st:[],q:'',lista:null,geo:[],esc:[],page:1};
+function ehPub(){return S.nivel==='pub';}
+function veCenso(){return S.nivel!=='pub'&&S.tab==='M';}
 
 function norm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -310,6 +319,7 @@ function carregar(primeira){
     var mudou=META.relatorio_iso&&META.relatorio_iso!==res[2].relatorio_iso;
     CFG=res[1];META=res[2];
     ROWS=res[0].map(function(r){var reg=REG_UF[r.uf];return{esf:r.e,uf:r.uf,mun:r.m||'',ibge:r.i||'',st:r.s,dt:r.a||'',env:r.d||'',reg:reg,terr:TERR_OF[reg],fl:r.f||[],norm:norm(r.m)};});
+    MUN_BY={};ROWS.forEach(function(r){if(r.esf==='M')MUN_BY[r.ibge]=r;});
     FLAGC={};ROWS.forEach(function(r){if(r.esf==='M')r.fl.forEach(function(f){FLAGC[f]=(FLAGC[f]||0)+1;});});
     if(primeira)return checarAdmin();
     if(mudou)toast('Dados atualizados: '+META.atualizado_em);
@@ -324,10 +334,12 @@ function carregar(primeira){
 }
 function checarAdmin(){
   var k=new URLSearchParams(location.search).get('admin');
-  if(!k||!CFG.admin_hash||!window.crypto||!crypto.subtle)return Promise.resolve();
+  if(!k||!(CFG.h1||CFG.h2)||!window.crypto||!crypto.subtle)return Promise.resolve();
   return crypto.subtle.digest('SHA-256',new TextEncoder().encode(k)).then(function(h){
     var hex=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
-    if(hex===CFG.admin_hash){S.admin=true;document.getElementById('tab-E').hidden=false;document.getElementById('badge-admin').hidden=false;}
+    var bd=document.getElementById('badge-admin');
+    if(CFG.h1&&hex===CFG.h1){S.nivel='adm';S.admin=true;document.getElementById('tab-E').hidden=false;bd.textContent='EQUIPE';bd.hidden=false;}
+    else if(CFG.h2&&hex===CFG.h2){S.nivel='terr';bd.textContent='TERRITORIAL';bd.hidden=false;}
   });
 }
 
@@ -338,9 +350,12 @@ function pass(r,skip){
   if(!semReg){ if(S.terr&&TERR[S.terr].indexOf(r.reg)<0)return false; if(S.reg.length&&S.reg.indexOf(r.reg)<0)return false; }
   if(!semUf&&S.uf.length&&S.uf.indexOf(r.uf)<0)return false;
   if(!semSt&&S.st.length&&S.st.indexOf(r.st)<0)return false;
-  if(S.q){var q=norm(S.q);if(r.norm.indexOf(q)<0&&r.ibge.indexOf(q)<0&&norm(UFN[r.uf]).indexOf(q)<0&&r.uf.toLowerCase()!==q)return false;}
+  if(S.q){var q=norm(S.q);
+    if(r.esf==='M'){if(r.norm.indexOf(q)<0&&r.ibge.indexOf(q)<0)return false;}
+    else if(norm(UFN[r.uf]).indexOf(q)<0&&r.uf.toLowerCase()!==q)return false;}
   if(S.lista&&r.esf==='M'&&!S.lista[r.ibge])return false;
-  if(S.admin&&S.tab==='M'){
+  if(S.mun.length&&r.esf==='M'&&S.mun.indexOf(r.ibge)<0)return false;
+  if(veCenso()){
     if(S.geo.length){var ok=(S.geo.indexOf('cap')>=0&&CAP.indexOf(r.ibge)>=0)||(S.geo.indexOf('maj')>=0&&MARAJO.indexOf(r.ibge)>=0);if(!ok)return false;}
     if(S.esc.length){var ok2=S.esc.some(function(f){return r.fl.indexOf(f)>=0;});if(!ok2)return false;}
   }
@@ -349,15 +364,53 @@ function pass(r,skip){
 function cnt(rows){var c={ni:0,tna:0,ta:0,ep:0,ea:0,t:rows.length};rows.forEach(function(r){c[r.st]++;});c.and=c.ta+c.ep;return c;}
 
 /* ---------- filtros ---------- */
-function msel(id,label,opts,key){
+function msel(id,label,opts,key,unica){
   var el=document.getElementById(id);var sel=S[key];
   var txt=sel.length===0?label+': todos':(sel.length===1?((opts.filter(function(o){return o[0]===sel[0];})[0]||[0,sel[0]])[1]):label+': '+sel.length+' selecionados');
   var d0=el.querySelector('.drop');var open=d0&&!d0.hidden;var sc=d0?d0.scrollTop:0;
-  el.innerHTML='<button type="button" class="'+(sel.length?'on':'')+'" aria-haspopup="true">'+esc(txt)+'</button><div class="drop"'+(open?'':' hidden')+'>'+opts.map(function(o){return '<label><input type="checkbox" value="'+esc(o[0])+'"'+(sel.indexOf(o[0])>=0?' checked':'')+'> '+esc(o[1])+'</label>';}).join('')+'</div>';
+  el.innerHTML='<button type="button" class="'+(sel.length?'on':'')+'" aria-haspopup="true">'+esc(txt)+'</button><div class="drop"'+(open?'':' hidden')+'>'+opts.map(function(o){return '<label><input type="'+(unica?'radio" name="r-'+id:'checkbox')+'" value="'+esc(o[0])+'"'+(sel.indexOf(o[0])>=0?' checked':'')+'> '+esc(o[1])+'</label>';}).join('')+'</div>';
   var d=el.querySelector('.drop');d.scrollTop=sc;
   el.querySelector('button').onclick=function(e){e.stopPropagation();var was=d.hidden;closeDrops();d.hidden=!was;};
-  el.querySelectorAll('input').forEach(function(i){i.onchange=function(){var v=i.value;if(i.checked){if(S[key].indexOf(v)<0)S[key].push(v);}else{S[key]=S[key].filter(function(x){return x!==v;});}S.page=1;render();};});
+  el.querySelectorAll('input').forEach(function(i){i.onchange=function(){var v=i.value;if(i.checked){if(unica)S[key]=[v];else if(S[key].indexOf(v)<0)S[key].push(v);}else{S[key]=S[key].filter(function(x){return x!==v;});}if(key==='uf')podarMun();if(unica)closeDrops();S.page=1;render();};});
   d.onclick=function(e){e.stopPropagation();};
+}
+/* município: lista suspensa com busca e multisseleção */
+var MUN_BY={};
+function munOpcoes(){
+  return ROWS.filter(function(r){
+    if(r.esf!=='M')return false;
+    if(S.terr&&TERR[S.terr].indexOf(r.reg)<0)return false;
+    if(S.reg.length&&S.reg.indexOf(r.reg)<0)return false;
+    if(S.uf.length&&S.uf.indexOf(r.uf)<0)return false;
+    return true;});
+}
+function podarMun(){if(!S.mun.length)return;var ok={};munOpcoes().forEach(function(r){ok[r.ibge]=1;});S.mun=S.mun.filter(function(i){return ok[i];});}
+function renderMun(){
+  var el=document.getElementById('ms-mun');
+  var d0=el.querySelector('.drop');var open=d0&&!d0.hidden;
+  var foco=document.activeElement&&document.activeElement.id==='mun-q';
+  var txt=S.mun.length===0?'Município: todos':(S.mun.length===1?(MUN_BY[S.mun[0]]?MUN_BY[S.mun[0]].mun:'1 município'):'Município: '+S.mun.length+' selecionados');
+  el.innerHTML='<button type="button" class="'+(S.mun.length?'on':'')+'" aria-haspopup="true">'+esc(txt)+'</button><div class="drop mun-drop"'+(open?'':' hidden')+'><input class="inp" id="mun-q" placeholder="Digite o nome do município" autocomplete="off"><div id="mun-list"></div></div>';
+  var d=el.querySelector('.drop'),q=el.querySelector('#mun-q');q.value=S.munQ;
+  el.querySelector('button').onclick=function(e){e.stopPropagation();var was=d.hidden;closeDrops();d.hidden=!was;if(was){listaMun();setTimeout(function(){q.focus();},0);}};
+  d.onclick=function(e){e.stopPropagation();};
+  q.oninput=function(){S.munQ=q.value;listaMun();};
+  if(open)listaMun();
+  if(foco){q.focus();q.setSelectionRange(q.value.length,q.value.length);}
+}
+function listaMun(){
+  var box=document.getElementById('mun-list');if(!box)return;
+  var ops=munOpcoes();var nq=norm(S.munQ);var mostrarUf=S.uf.length!==1;
+  var sel=S.mun.map(function(i){return MUN_BY[i];}).filter(Boolean);
+  var cand=ops.filter(function(r){return S.mun.indexOf(r.ibge)<0&&(!nq||r.norm.indexOf(nq)>=0||r.ibge.indexOf(nq)===0);});
+  var lim=150,html='';
+  var item=function(r,on){return '<label><input type="checkbox" value="'+r.ibge+'"'+(on?' checked':'')+'> '+esc(r.mun)+(mostrarUf?' <small style="color:var(--muted)">'+r.uf+'</small>':'')+'</label>';};
+  if(sel.length)html+='<div class="sel">'+sel.map(function(r){return item(r,true);}).join('')+'</div>';
+  html+=cand.slice(0,lim).map(function(r){return item(r,false);}).join('');
+  if(cand.length>lim)html+='<div class="info">Mostrando '+lim+' de '+fmt(cand.length)+'. Digite para refinar'+(S.uf.length?'':' ou escolha uma UF')+'.</div>';
+  if(!cand.length&&!sel.length)html+='<div class="info">Nenhum município encontrado.</div>';
+  box.innerHTML=html;
+  box.querySelectorAll('input').forEach(function(i){i.onchange=function(){var v=i.value;if(i.checked){if(S.mun.indexOf(v)<0)S.mun.push(v);}else S.mun=S.mun.filter(function(x){return x!==v;});S.page=1;render();};});
 }
 function closeDrops(){document.querySelectorAll('.drop').forEach(function(d){d.hidden=true;});}
 document.addEventListener('click',closeDrops);
@@ -365,14 +418,19 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrops()
 var tBusca;document.getElementById('busca').addEventListener('input',function(){var v=this.value;clearTimeout(tBusca);tBusca=setTimeout(function(){S.q=v;S.page=1;render();},200);});
 
 function renderFiltros(){
+  var pub=ehPub();
+  document.getElementById('row-terr').hidden=pub;
+  document.getElementById('ms-reg').hidden=pub;
   var t=document.getElementById('terr');
   t.innerHTML=['','Nordeste','Sul + Sudeste','Norte + Centro-Oeste'].map(function(k){return '<button aria-pressed="'+(S.terr===k)+'" data-k="'+k+'">'+(k||'Todos')+'</button>';}).join('');
   t.querySelectorAll('button').forEach(function(b){b.onclick=function(){S.terr=b.dataset.k;S.reg=S.reg.filter(function(r){return !S.terr||TERR[S.terr].indexOf(r)>=0;});S.page=1;render();};});
   msel('ms-reg','Região',REGS.filter(function(r){return !S.terr||TERR[S.terr].indexOf(r)>=0;}).map(function(r){return[r,r];}),'reg');
   var ufs=Object.keys(UFN).filter(function(u){var rg=REG_UF[u];if(S.terr&&TERR[S.terr].indexOf(rg)<0)return false;if(S.reg.length&&S.reg.indexOf(rg)<0)return false;if(S.tab==='M'&&u==='DF')return false;return true;});
-  msel('ms-uf','UF',ufs.map(function(u){return[u,u+' · '+UFN[u]];}),'uf');
+  msel('ms-uf','UF',ufs.map(function(u){return[u,u+' · '+UFN[u]];}),'uf',pub);
+  document.getElementById('ms-mun').hidden=S.tab!=='M';
+  if(S.tab==='M')renderMun();
   msel('ms-st','Status',Object.keys(ST).map(function(k){return[k,ST[k]];}),'st');
-  var showAdm=S.admin&&S.tab==='M';
+  var showAdm=veCenso();
   document.getElementById('adm-row').hidden=!showAdm;
   if(showAdm){
     msel('ms-geo','Geo',Object.keys(GEO).map(function(k){return[k,GEO[k]];}),'geo');
@@ -385,6 +443,7 @@ function renderFiltros(){
   if(S.terr)ch.push(['Território: '+S.terr,function(){S.terr='';}]);
   S.reg.forEach(function(v){ch.push([v,function(){S.reg=S.reg.filter(function(x){return x!==v;});}]);});
   S.uf.forEach(function(v){ch.push([v,function(){S.uf=S.uf.filter(function(x){return x!==v;});}]);});
+  S.mun.forEach(function(v){var m=MUN_BY[v];ch.push([m?m.mun+'/'+m.uf:v,function(){S.mun=S.mun.filter(function(x){return x!==v;});}]);});
   S.st.forEach(function(v){ch.push([ST[v],function(){S.st=S.st.filter(function(x){return x!==v;});}]);});
   if(S.q)ch.push(['Busca: '+S.q,function(){S.q='';document.getElementById('busca').value='';}]);
   if(S.lista)ch.push(['Lista: '+fmt(Object.keys(S.lista).length)+' municípios',function(){S.lista=null;}]);
@@ -393,7 +452,7 @@ function renderFiltros(){
   if(!ch.length){c.innerHTML='<span class="sub">Nenhum filtro aplicado</span>';return;}
   c.innerHTML='<span class="flbl" style="min-width:auto">Filtros ativos</span>'+ch.map(function(x,i){return '<span class="chip">'+esc(x[0])+'<button aria-label="Remover filtro" data-i="'+i+'">✕</button></span>';}).join('')+'<button class="btn ghost" id="limpar">Limpar filtros</button>';
   c.querySelectorAll('.chip button').forEach(function(b){b.onclick=function(){ch[+b.dataset.i][1]();S.page=1;render();};});
-  document.getElementById('limpar').onclick=function(){S.terr='';S.reg=[];S.uf=[];S.st=[];S.q='';S.lista=null;S.geo=[];S.esc=[];S.page=1;document.getElementById('busca').value='';render();};
+  document.getElementById('limpar').onclick=function(){S.terr='';S.reg=[];S.uf=[];S.mun=[];S.munQ='';S.st=[];S.q='';S.lista=null;S.geo=[];S.esc=[];S.page=1;document.getElementById('busca').value='';render();};
 }
 
 /* ---------- lista de municípios ---------- */
@@ -439,14 +498,15 @@ function renderCards(){
 
 /* ---------- regiões ---------- */
 function renderRegs(){
-  document.getElementById('reg-sub').textContent=S.st.length?'% de redes da região no status filtrado · clique para filtrar':'% de redes que já enviaram ao MEC · clique para filtrar';
+  var cl=ehPub()?'':' · clique para filtrar';
+  document.getElementById('reg-sub').textContent=(S.st.length?'% de redes da região no status filtrado':'% de redes que já enviaram ao MEC')+cl;
   document.getElementById('regs').innerHTML=REGS.map(function(rg){
     var c=cnt(base().filter(function(r){return r.reg===rg&&pass(r,'regst');}));
     var sel=S.st.length?S.st.reduce(function(a,k){return a+c[k];},0):c.ea;
     var o=S.reg.indexOf(rg)>=0;var outT=S.terr&&TERR[S.terr].indexOf(rg)<0;
-    return '<button class="reg'+(o?' on':((S.reg.length||outT)?' dim':''))+'" data-r="'+rg+'"><span class="nm">'+rg+'</span><span class="pc num">'+pf(sel,c.t)+' <small>'+(S.st.length?fmt(sel)+' no status filtrado':'enviado')+'</small></span><span class="mini">'+['ea','ep','ta','tna','ni'].map(function(k){return '<i style="width:'+pct(c[k],c.t)+'%;background:var('+STC[k]+')"></i>';}).join('')+'</span><span class="ni num"><b>'+fmt(c.ni)+'</b> não iniciaram · '+fmt(c.and)+' em andamento</span><span class="ni num">'+fmt(c.t)+' redes</span></button>';
+    return '<button class="reg'+(ehPub()?' fixo':'')+(o?' on':((S.reg.length||outT)?' dim':''))+'" data-r="'+rg+'"'+(ehPub()?' tabindex="-1"':'')+'><span class="nm">'+rg+'</span><span class="pc num">'+pf(sel,c.t)+' <small>'+(S.st.length?fmt(sel)+' no status filtrado':'enviado')+'</small></span><span class="mini">'+['ea','ep','ta','tna','ni'].map(function(k){return '<i style="width:'+pct(c[k],c.t)+'%;background:var('+STC[k]+')"></i>';}).join('')+'</span><span class="ni num"><b>'+fmt(c.ni)+'</b> não iniciaram · '+fmt(c.and)+' em andamento</span><span class="ni num">'+fmt(c.t)+' redes</span></button>';
   }).join('');
-  document.querySelectorAll('.reg').forEach(function(b){b.onclick=function(){var v=b.dataset.r;if(S.reg.indexOf(v)>=0)S.reg=S.reg.filter(function(x){return x!==v;});else{S.reg.push(v);if(S.terr&&TERR[S.terr].indexOf(v)<0)S.terr='';}S.page=1;render();};});
+  if(!ehPub())document.querySelectorAll('.reg').forEach(function(b){b.onclick=function(){var v=b.dataset.r;if(S.reg.indexOf(v)>=0)S.reg=S.reg.filter(function(x){return x!==v;});else{S.reg.push(v);if(S.terr&&TERR[S.terr].indexOf(v)<0)S.terr='';}S.page=1;render();};});
 }
 
 /* ---------- mapa ---------- */
@@ -471,7 +531,7 @@ function renderMapa(){
   document.querySelectorAll('#map-svg path').forEach(function(p){
     p.onmousemove=function(e){tip.innerHTML=p.dataset.t;tip.style.display='block';tip.style.left=Math.min(e.clientX+14,innerWidth-250)+'px';tip.style.top=(e.clientY+14)+'px';};
     p.onmouseleave=function(){tip.style.display='none';};
-    p.onclick=function(){var u=p.dataset.u;if(S.tab==='M'&&u==='DF')return;if(S.uf.indexOf(u)>=0)S.uf=S.uf.filter(function(x){return x!==u;});else S.uf.push(u);S.page=1;render();};
+    p.onclick=function(){var u=p.dataset.u;if(S.tab==='M'&&u==='DF')return;if(S.uf.indexOf(u)>=0)S.uf=S.uf.filter(function(x){return x!==u;});else if(ehPub())S.uf=[u];else S.uf.push(u);podarMun();S.page=1;render();};
   });
 }
 
@@ -509,15 +569,31 @@ function renderCurva(){
 }
 
 /* ---------- tabela e exportação ---------- */
-function liberado(){return S.admin||S.terr||S.reg.length||S.uf.length;}
+/* Quem pode VER a lista de redes */
+function liberado(){
+  if(S.nivel==='adm')return true;
+  if(S.uf.length===1||S.mun.length||S.lista)return true;
+  if(S.nivel==='terr')return !!(S.terr||S.reg.length||S.uf.length);
+  return false;
+}
+/* Quem pode BAIXAR: público = 1 UF; territorial = 1 território por vez; equipe = tudo */
+function podeBaixar(rows){
+  if(S.nivel==='adm')return {ok:true};
+  if(S.nivel==='terr'){
+    var ts={};rows.forEach(function(r){ts[r.terr]=1;});var n=Object.keys(ts).length;
+    if(!(S.terr||S.reg.length||S.uf.length||S.mun.length||S.lista))return {ok:false,msg:'Escolha um Território, Região ou UF para baixar'};
+    return n<=1?{ok:true}:{ok:false,msg:'Para baixar, o recorte precisa ficar dentro de um único território'};
+  }
+  return S.uf.length===1?{ok:true}:{ok:false,msg:'Escolha uma UF para baixar'};
+}
 function filtradas(){return base().filter(function(r){return pass(r);});}
 function renderTabela(){
   var rows=filtradas();
   document.getElementById('t-count').textContent=fmt(rows.length)+' redes no filtro atual';
-  var lib=liberado();
-  ['ex-x','ex-c'].forEach(function(id){var b=document.getElementById(id);b.setAttribute('aria-disabled',String(!lib||!rows.length));b.style.opacity=(lib&&rows.length)?1:.5;b.title=lib?'':'Aplique um filtro de Território, Região ou UF para baixar';});
+  var lib=liberado();var pb=podeBaixar(rows);var okb=pb.ok&&rows.length>0;
+  ['ex-x','ex-c'].forEach(function(id){var b=document.getElementById(id);b.setAttribute('aria-disabled',String(!okb));b.style.opacity=okb?1:.5;b.title=okb?'':(pb.msg||'Nenhuma rede neste filtro');});
   var el=document.getElementById('tabela');
-  if(!lib){el.innerHTML='<div class="lock"><strong>Escolha um Território, Região ou UF para ver a lista de redes</strong><span>Os números acima já refletem os filtros. A lista e o download aparecem depois desse recorte.</span></div>';return;}
+  if(!lib){el.innerHTML='<div class="lock"><strong>'+(S.nivel==='terr'?'Escolha um Território, Região ou UF para ver a lista de redes':'Escolha uma UF ou municípios para ver a lista de redes')+'</strong><span>Os números acima já refletem os filtros. A lista e o download aparecem depois desse recorte.</span></div>';return;}
   if(!rows.length){el.innerHTML='<div class="lock"><strong>Nenhuma rede neste filtro</strong></div>';return;}
   var n=S.page*50;var M=S.tab==='M';
   el.innerHTML='<div class="twrap"><table><thead><tr><th>UF</th><th>'+(M?'Município':'Rede')+'</th>'+(M?'<th>Cód. IBGE</th>':'')+'<th>Região</th><th>Território</th><th>Situação</th><th>Etapa</th><th>Termo aceito em</th></tr></thead><tbody>'+
@@ -526,13 +602,14 @@ function renderTabela(){
   var m=document.getElementById('mais');if(m)m.onclick=function(){S.page++;renderTabela();};
 }
 function exportar(tipo){
-  if(!liberado()){toast('Escolha um Território, Região ou UF para baixar');return;}
-  var rows=filtradas();if(!rows.length){toast('Nenhuma rede neste filtro');return;}var M=S.tab==='M';
+  var rows=filtradas();if(!rows.length){toast('Nenhuma rede neste filtro');return;}
+  var pb=podeBaixar(rows);if(!pb.ok){toast(pb.msg);return;}var M=S.tab==='M';
   var cab=['UF','UF (nome)'].concat(M?['Município','Código IBGE']:['Rede']).concat(['Região','Território','Situação','Status SIMEC','Etapa','Termo aceito em']);
-  if(S.admin&&M)cab=cab.concat(['Capital','Marajó'],Object.keys(ESC).map(function(k){return ESC[k];}));
+  var comCenso=M&&S.nivel!=='pub';
+  if(comCenso)cab=cab.concat(['Capital','Marajó'],Object.keys(ESC).map(function(k){return ESC[k];}));
   var linhas=rows.map(function(r){
     var l=[r.uf,UFN[r.uf]].concat(M?[r.mun,r.ibge]:['Rede estadual']).concat([r.reg,r.terr,GRUPO[r.st],ST[r.st],ETAPA[r.st],brData(r.dt)]);
-    if(S.admin&&M)l=l.concat([CAP.indexOf(r.ibge)>=0?'Sim':'',MARAJO.indexOf(r.ibge)>=0?'Sim':''],Object.keys(ESC).map(function(k){return r.fl.indexOf(k)>=0?'Sim':'';}));
+    if(comCenso)l=l.concat([CAP.indexOf(r.ibge)>=0?'Sim':'',MARAJO.indexOf(r.ibge)>=0?'Sim':''],Object.keys(ESC).map(function(k){return r.fl.indexOf(k)>=0?'Sim':'';}));
     return l;
   });
   var dataArq=META.relatorio_iso.slice(0,16).replace('T','_').replace(/:/g,'h');
@@ -561,7 +638,7 @@ function baixarArquivo(blob,nome){
 }
 function descFiltros(){
   var p=[];if(S.terr)p.push('Território: '+S.terr);if(S.reg.length)p.push('Região: '+S.reg.join(', '));if(S.uf.length)p.push('UF: '+S.uf.join(', '));
-  if(S.st.length)p.push('Status: '+S.st.map(function(k){return ST[k];}).join(', '));if(S.q)p.push('Busca: '+S.q);if(S.lista)p.push('Lista de '+Object.keys(S.lista).length+' municípios');
+  if(S.st.length)p.push('Status: '+S.st.map(function(k){return ST[k];}).join(', '));if(S.q)p.push('Busca: '+S.q);if(S.lista)p.push('Lista de '+Object.keys(S.lista).length+' municípios');if(S.mun.length)p.push('Municípios: '+S.mun.map(function(i){return MUN_BY[i]?MUN_BY[i].mun+'/'+MUN_BY[i].uf:i;}).join(', '));
   if(S.geo.length)p.push(S.geo.map(function(k){return GEO[k];}).join(', '));if(S.esc.length)p.push(S.esc.map(function(k){return ESC[k];}).join(', '));
   return p.join(' | ')||'Nenhum';
 }
@@ -580,7 +657,7 @@ function renderTopo(){
   else if(dias===0){el.className='prazo';el.innerHTML='<span class="d">Último dia</span><span class="l">prazo até hoje,<br>'+brData(iso)+'</span>';}
   else{el.className='prazo';el.innerHTML='<span class="d num">'+dias+'</span><span class="l">'+(dias===1?'dia restante':'dias restantes')+'<br>prazo até '+brData(iso)+'</span>';}
 }
-function setTab(t){if(t==='E'&&!S.admin)return;S.tab=t;S.uf=[];S.lista=null;S.geo=[];S.esc=[];S.q='';S.st=[];S.page=1;document.getElementById('busca').value='';['M','E'].forEach(function(k){document.getElementById('tab-'+k).setAttribute('aria-selected',k===t);});render();}
+function setTab(t){if(t==='E'&&S.nivel!=='adm')return;S.tab=t;S.uf=[];S.mun=[];S.munQ='';S.lista=null;S.geo=[];S.esc=[];S.q='';S.st=[];S.page=1;document.getElementById('busca').value='';['M','E'].forEach(function(k){document.getElementById('tab-'+k).setAttribute('aria-selected',k===t);});render();}
 function render(){renderTopo();renderFiltros();renderCards();renderRegs();renderMapa();renderCurva();renderTabela();}
 
 carregar(true);
