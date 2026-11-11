@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel Renedic</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&family=Raleway:wght@600;700;800&display=swap">
+<style>
+/* Layout: faixa roxa de identidade no topo, aviso amarelo, e abaixo um painel de leitura em camadas — status → regiões → mapa+curva → tabela */
+:root{
+  --indigo:#322E7A; --indigo-2:#46419A; --green:#4D934B; --yellow:#F4DC84; --ink:#1C1C1C;
+  --bg:#F6F5FA; --surface:#FFFFFF; --surface-2:#EFEEF6; --line:#DEDCEA; --fg:#1C1C1C; --muted:#5E5B70;
+  --on-indigo:#FFFFFF; --aviso-bg:#F4DC84; --aviso-fg:#3A3000;
+  --s-ni:#C8553D; --s-tna:#7A2323; --s-and:#D9A520; --s-ta:#E7C04B; --s-ep:#B8861B; --s-ea:#4D934B;
+  --focus:#1155CC;
+  --f-display:"Raleway","Fira Sans",system-ui,sans-serif;
+  --f-body:"Fira Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15141F; --surface:#1E1C2B; --surface-2:#272539; --line:#363350; --fg:#ECEBF3; --muted:#A6A3BC;
+  --indigo:#2A2669; --indigo-2:#8C86E0; --aviso-bg:#3B3416; --aviso-fg:#F4DC84;
+  --s-ni:#E07A62; --s-tna:#C25A5A; --s-and:#E6B93A; --s-ta:#EBCB62; --s-ep:#C99A35; --s-ea:#6BB368; --green:#6BB368; --focus:#8AB4F8;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#15141F; --surface:#1E1C2B; --surface-2:#272539; --line:#363350; --fg:#ECEBF3; --muted:#A6A3BC;
+  --indigo:#2A2669; --indigo-2:#8C86E0; --aviso-bg:#3B3416; --aviso-fg:#F4DC84;
+  --s-ni:#E07A62; --s-tna:#C25A5A; --s-and:#E6B93A; --s-ta:#EBCB62; --s-ep:#C99A35; --s-ea:#6BB368; --green:#6BB368; --focus:#8AB4F8;
+  color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+button[disabled]{cursor:not-allowed}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--indigo)}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* topo */
+.top{background:var(--indigo);color:var(--on-indigo)}
+.top .wrap{padding-block:18px 0;display:flex;flex-direction:column;gap:14px}
+.top-row{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.brand b{font-family:var(--f-display);font-weight:800;font-size:30px;letter-spacing:-.01em}
+.brand span{font-size:15px;opacity:.85}
+.stamp{font-size:12.5px;opacity:.9;text-align:right}
+.stamp strong{font-weight:600}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{background:transparent;border:0;color:var(--on-indigo);opacity:.75;padding:10px 16px;border-radius:8px 8px 0 0;cursor:pointer;font-weight:600}
+.tab[aria-selected="true"]{background:var(--bg);color:var(--fg);opacity:1}
+.tab .c{font-weight:400;opacity:.7;margin-left:4px}
+.proto{display:flex;align-items:center;gap:8px;font-size:12px;opacity:.95;flex-wrap:wrap}
+.proto .seg{display:inline-flex;background:rgba(255,255,255,.12);border-radius:999px;padding:2px}
+.proto .seg button{border:0;background:transparent;color:#fff;padding:3px 10px;border-radius:999px;cursor:pointer;font-size:12px}
+.proto .seg button[aria-pressed="true"]{background:#fff;color:#322E7A;font-weight:600}
+
+/* aviso */
+.aviso{background:var(--aviso-bg);color:var(--aviso-fg)}
+.aviso .wrap{padding-block:12px;display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;justify-content:space-between}
+.aviso p{margin:0;font-weight:500;max-width:70ch}
+.prazo{display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.prazo .d{font-family:var(--f-display);font-weight:800;font-size:26px;line-height:1}
+.prazo .l{font-size:13px}
+.prazo.enc .d{font-size:16px}
+
+main.wrap{padding-block:20px 48px;display:flex;flex-direction:column;gap:20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+h2{font-family:var(--f-display);font-weight:700;font-size:17px;margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:12.5px;margin:2px 0 0}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+
+/* filtros */
+.filtros{display:flex;flex-direction:column;gap:10px}
+.frow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.flbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;min-width:84px}
+.seg2{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg2 button{border:0;background:var(--surface);padding:7px 12px;cursor:pointer;border-right:1px solid var(--line)}
+.seg2 button:last-child{border-right:0}
+.seg2 button[aria-pressed="true"]{background:var(--indigo-2);color:#fff;font-weight:600}
+:root .seg2 button[aria-pressed="true"]{background:#322E7A}
+.ms{position:relative}
+.ms>button{border:1px solid var(--line);background:var(--surface);padding:7px 30px 7px 12px;border-radius:8px;cursor:pointer;min-width:150px;text-align:left;position:relative}
+.ms>button::after{content:"";position:absolute;right:12px;top:50%;width:6px;height:6px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg)}
+.ms>button.on{border-color:#322E7A;box-shadow:inset 0 0 0 1px #322E7A}
+.drop{position:absolute;z-index:20;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(20,18,50,.16);padding:6px;min-width:220px;max-height:300px;overflow:auto}
+.drop label{display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.drop label:hover{background:var(--surface-2)}
+.inp{border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px;border-radius:8px;font:inherit;min-width:0}
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:8px;cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn.pri{background:#322E7A;color:#fff;border-color:#322E7A}
+.btn.ghost{border-color:transparent;color:var(--s-ni);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:12.5px}
+.chip button{border:0;background:transparent;cursor:pointer;width:18px;height:18px;border-radius:50%;line-height:1;color:var(--muted)}
+.chip button:hover{background:var(--line)}
+.admin-row{border-top:1px dashed var(--line);padding-top:10px}
+.admin-tag{font-size:10.5px;background:#322E7A;color:#fff;border-radius:4px;padding:2px 6px;letter-spacing:.04em;font-weight:600}
+.lista{display:none;flex-direction:column;gap:8px;background:var(--surface-2);border-radius:8px;padding:10px}
+.lista.open{display:flex}
+.lista textarea{width:100%;min-height:80px;resize:vertical}
+.lista .res{font-size:12.5px;color:var(--muted)}
+
+/* status */
+.headline{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:10px}
+.headline .big{font-family:var(--f-display);font-weight:800;font-size:34px;color:var(--s-ea);line-height:1}
+.headline .txt{font-size:15px}
+.stack{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--surface-2);margin-bottom:14px}
+.stack i{display:block;height:100%}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.card{position:relative;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:border-color .15s, box-shadow .15s}
+.card .t::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:7px;vertical-align:1px}
+.card:hover{border-color:var(--c)}
+.card.on{border-color:var(--c);box-shadow:inset 0 0 0 1.5px var(--c);background:color-mix(in srgb,var(--c) 8%,var(--surface))}
+.card .t{font-size:12.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.card .n{font-family:var(--f-body);font-weight:700;font-size:28px;line-height:1.1}
+.card .p{font-size:13px;color:var(--muted)}
+.card .hint{font-size:12px;color:var(--muted);margin-top:4px}
+.subs{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.subc{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12.5px;background:var(--surface);cursor:pointer}
+.subc .dot{width:8px;height:8px;border-radius:50%;background:var(--c);display:inline-block;margin-right:6px}
+.subc.on{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+.subc small{color:var(--muted)}
+.card.dim,.subc.dim{opacity:.55}
+
+/* regiões */
+.regs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.reg{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.reg:hover{border-color:#322E7A}
+.reg.on{border-color:#322E7A;box-shadow:inset 0 0 0 1.5px #322E7A}
+.reg.dim{opacity:.55}
+.reg .nm{font-weight:600}
+.reg .pc{font-weight:700;font-size:22px;color:var(--s-ea);line-height:1}
+.reg .pc small{font-size:12px;font-weight:500;color:var(--muted)}
+.reg .mini{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--surface-2)}
+.reg .mini i{display:block}
+.reg .ni{font-size:12px;color:var(--muted)}
+.reg .ni b{color:var(--s-ni)}
+
+/* mapa + curva */
+.duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px}
+#mapa svg{width:100%;height:auto;display:block;max-height:440px}
+#mapa path{stroke:var(--surface);stroke-width:2;cursor:pointer;transition:opacity .15s}
+#mapa path:hover{stroke:var(--fg);stroke-width:2.5}
+#mapa path.on{stroke:#322E7A;stroke-width:4}
+#mapa path.dim{opacity:.3}
+#mapa text{font-weight:600;pointer-events:none;fill:#1C1C1C}
+.legend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
+.legend .grad{display:flex;height:10px;width:160px;border-radius:5px;overflow:hidden}
+.legend .grad i{flex:1}
+.tip{position:fixed;pointer-events:none;background:var(--fg);color:var(--bg);padding:8px 10px;border-radius:8px;font-size:12.5px;z-index:50;display:none;max-width:240px}
+#curva svg{width:100%;height:auto;display:block}
+#curva .ax{font-size:11px;fill:var(--muted)}
+#curva .grid{stroke:var(--line)}
+.cnote{font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}
+.cnote span{display:inline-flex;align-items:center;gap:6px}
+.cnote i{display:inline-block;width:18px;height:0;border-top:2px dashed var(--s-ea)}
+.cnote i.s{border-top-style:solid}
+.delta{display:inline-flex;gap:6px;align-items:center;background:color-mix(in srgb,var(--s-ea) 14%,var(--surface));color:var(--s-ea);font-weight:600;border-radius:999px;padding:3px 10px;font-size:12.5px}
+
+/* tabela */
+.twrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface-2);position:sticky;top:0}
+tbody tr:hover{background:var(--surface-2)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;background:color-mix(in srgb,var(--c) 16%,var(--surface));color:var(--fg);border:1px solid color-mix(in srgb,var(--c) 45%,transparent)}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c)}
+.etapa{font-size:12px;color:var(--muted)}
+.lock{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:36px 16px;color:var(--muted);border:1px dashed var(--line);border-radius:8px}
+.lock strong{color:var(--fg);font-size:15px}
+.more{margin-top:10px;display:flex;justify-content:center}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#322E7A;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:60;display:none;max-width:90vw}
+
+@media (max-width:980px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.regs{grid-template-columns:repeat(3,minmax(0,1fr))}.duo{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.regs{grid-template-columns:repeat(2,minmax(0,1fr))}.cards{grid-template-columns:minmax(0,1fr)}.brand b{font-size:24px}.stamp{text-align:left}.flbl{min-width:100%}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.top .admin-tag{align-self:center;background:#F4DC84;color:#322E7A}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <div class="brand"><b>Renedic</b><span>Painel de adesão das redes de ensino</span><span class="admin-tag" id="badge-admin" hidden>EQUIPE</span></div>
+      <div class="stamp">Atualizado em <strong class="num" id="stamp">—</strong><br>Fonte: SIMEC · Status de adesão detalhado</div>
+    </div>
+    <div class="top-row">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-M" aria-selected="true" onclick="setTab('M')">Redes municipais <span class="c num" id="c-M"></span></button>
+        <button class="tab" role="tab" id="tab-E" aria-selected="false" onclick="setTab('E')" hidden>Redes estaduais <span class="c num" id="c-E"></span></button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="aviso" id="aviso">
+  <div class="wrap">
+    <p id="msg"></p>
+    <div class="prazo" id="prazo"></div>
+  </div>
+</section>
+
+<main class="wrap" id="app">
+  <div class="panel lock" id="carregando"><strong>Carregando dados…</strong></div>
+
+  <section class="panel filtros" aria-label="Filtros" hidden>
+    <div class="frow"><span class="flbl">Território</span>
+      <div class="seg2" id="terr"></div>
+    </div>
+    <div class="frow"><span class="flbl">Recortes</span>
+      <div class="ms" id="ms-reg"></div>
+      <div class="ms" id="ms-uf"></div>
+      <div class="ms" id="ms-st"></div>
+      <input class="inp" id="busca" placeholder="Buscar município ou código IBGE" style="flex:1 1 220px">
+      <button class="btn" id="btn-lista" onclick="toggleLista()">Colar lista</button>
+    </div>
+    <div class="lista" id="lista">
+      <label for="lista-txt" style="font-weight:600;font-size:13px">Cole nomes de municípios ou códigos IBGE — um por linha, ou separados por vírgula ou ponto e vírgula. Para nomes repetidos em mais de um estado, use "Nome/UF".</label>
+      <textarea class="inp" id="lista-txt" placeholder="Ex.:&#10;2304400&#10;Bom Jesus/PI&#10;Feijó"></textarea>
+      <div class="frow"><button class="btn pri" onclick="aplicarLista()">Aplicar lista</button><button class="btn" onclick="limparLista()">Remover lista</button><span class="res" id="lista-res"></span></div>
+    </div>
+    <div class="frow admin-row" id="adm-row" hidden><span class="flbl"><span class="admin-tag">EQUIPE</span></span>
+      <div class="ms" id="ms-geo"></div>
+      <div class="ms" id="ms-esc"></div>
+    </div>
+    <div class="frow"><div class="chips" id="chips"></div></div>
+  </section>
+
+  <section class="panel" aria-label="Status das redes" hidden>
+    <div class="hd"><div><h2>Em que ponto estão as redes</h2><p class="sub">Clique em um card para filtrar. Clique de novo para remover só esse filtro.</p></div></div>
+    <div class="headline"><span class="big num" id="hl-p"></span><span class="txt" id="hl-t"></span></div>
+    <div class="stack" id="stack" aria-hidden="true"></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="panel" aria-label="Regiões" hidden>
+    <div class="hd"><div><h2>Por região</h2><p class="sub" id="reg-sub">% de redes que já enviaram ao MEC · clique para filtrar</p></div></div>
+    <div class="regs" id="regs"></div>
+  </section>
+
+  <section class="duo" hidden>
+    <div class="panel" id="mapa">
+      <div class="hd"><div><h2>Mapa por UF</h2><p class="sub" id="map-sub">Cor = % enviado ao MEC · clique na UF para filtrar</p></div></div>
+      <div id="map-svg"></div>
+      <div class="legend"><span>0%</span><span class="grad" id="grad"></span><span>100%</span></div>
+    </div>
+    <div class="panel" id="curva">
+      <div class="hd"><div><h2>Curva de evolução</h2><p class="sub">Redes com indicação enviada ao MEC (Em análise), acumulado por dia</p></div></div>
+      <div id="curva-svg"></div>
+      <p class="cnote">Cada dia mostra o total da última atualização daquele dia. Para os dias anteriores ao início do acompanhamento, a data considerada é a do termo aceito.</p>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Tabela de redes" hidden>
+    <div class="hd">
+      <div><h2>Redes</h2><p class="sub num" id="t-count"></p></div>
+      <div class="frow"><button class="btn" id="ex-x" onclick="exportar('xlsx')">Baixar Excel</button><button class="btn" id="ex-c" onclick="exportar('csv')">Baixar CSV</button></div>
+    </div>
+    <div id="tabela"></div>
+  </section>
+</main>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* =====================================================================
+   PAINEL RENEDIC — os dados vêm de saida/*.json (gerados pelo processar.py)
+   ===================================================================== */
+var MAPA={"AC":{"d":"M19,1311L130,1362L351,1414L712,1594L672,1628L637,1637L608,1671L574,1667L557,1696L527,1711L442,1693L393,1692L356,1707L335,1693L326,1700L326,1582L339,1543L269,1597L176,1600L179,1580L159,1549L76,1541L103,1499L69,1461L70,1447L45,1435L22,1391L31,1378L1,1355L4,1335L29,1331L19,1311Z","cx":327,"cy":1520},"AL":{"d":"M3722,1483L3752,1491L3738,1518L3733,1526L3633,1650L3575,1598L3454,1533L3501,1486L3579,1538L3587,1527L3612,1534L3649,1517L3664,1491L3722,1483Z","cx":3609,"cy":1568},"AM":{"d":"M637,375L667,427L668,483L690,477L742,524L813,499L817,535L838,507L852,508L859,484L888,469L894,477L928,447L933,464L957,438L966,402L1027,379L1049,383L1060,399L1091,406L1081,441L1116,502L1108,549L1141,633L1131,665L1110,676L1155,712L1169,740L1210,758L1196,739L1199,694L1211,666L1235,650L1263,656L1288,689L1322,672L1314,651L1349,574L1459,574L1461,634L1514,714L1530,723L1544,711L1549,740L1604,772L1626,772L1639,791L1668,802L1673,821L1729,803L1694,842L1520,1247L1499,1270L1532,1336L1509,1384L1518,1413L1507,1478L1199,1480L1187,1469L1161,1488L1078,1399L1003,1397L988,1432L971,1433L973,1458L953,1472L952,1496L885,1499L860,1543L846,1526L826,1532L827,1547L812,1541L793,1559L776,1541L733,1541L724,1563L695,1581L351,1414L130,1362L19,1311L34,1276L83,1250L74,1203L100,1165L115,1111L204,1052L295,1039L323,1013L355,1015L367,1037L390,1030L445,713L423,675L424,651L381,619L382,544L437,526L448,539L472,535L457,494L401,491L402,428L564,427L554,417L559,404L585,417L637,375Z","cx":1032,"cy":927},"AP":{"d":"M2204,199L2250,386L2275,380L2295,420L2326,430L2329,481L2309,530L2279,538L2254,581L2201,612L2156,678L2154,707L2118,724L2084,705L2075,659L2063,658L2058,630L2035,614L2012,562L2018,532L1989,507L1987,476L1924,451L1902,426L1860,422L1847,357L1866,355L1890,379L1934,377L1954,362L1976,374L1996,365L2003,383L2034,383L2072,348L2093,283L2159,196L2169,158L2204,199Z","cx":2120,"cy":440},"BA":{"d":"M3353,1456L3358,1471L3400,1479L3413,1497L3424,1482L3431,1500L3449,1502L3458,1542L3477,1550L3478,1592L3494,1600L3503,1633L3491,1643L3495,1669L3457,1671L3455,1692L3495,1751L3541,1744L3473,1863L3444,1895L3418,1893L3384,1928L3392,1964L3381,1974L3388,1994L3374,2071L3395,2186L3360,2317L3368,2369L3326,2409L3316,2435L3263,2398L3263,2373L3224,2341L3237,2288L3257,2290L3258,2257L3269,2258L3298,2211L3262,2180L3230,2180L3205,2165L3156,2174L3153,2150L3110,2110L3082,2119L2977,2065L2943,2081L2909,2065L2919,2034L2877,2023L2697,2126L2708,2097L2703,2042L2714,2035L2679,2010L2689,1959L2681,1943L2701,1928L2674,1930L2673,1910L2694,1892L2675,1895L2678,1858L2690,1848L2671,1834L2666,1804L2688,1790L2668,1787L2674,1763L2697,1764L2658,1752L2645,1729L2684,1665L2721,1644L2743,1611L2777,1682L2808,1693L2842,1663L2865,1655L2885,1664L2930,1600L2912,1555L2948,1526L2967,1542L2997,1541L3017,1562L3067,1529L3107,1524L3151,1471L3177,1470L3220,1516L3209,1545L3224,1548L3252,1535L3260,1506L3288,1505L3294,1483L3316,1479L3314,1466L3353,1456Z","cx":3037,"cy":1951},"CE":{"d":"M3282,884L3432,971L3476,1025L3550,1083L3512,1093L3461,1195L3421,1228L3418,1278L3403,1299L3426,1329L3384,1384L3372,1386L3317,1331L3231,1339L3248,1280L3213,1265L3197,1204L3195,1118L3164,1087L3179,1017L3177,1004L3163,1004L3164,971L3147,937L3163,909L3156,892L3236,878L3282,884Z","cx":3338,"cy":1156},"ES":{"d":"M3214,2684L3192,2730L3118,2712L3119,2687L3103,2676L3105,2637L3114,2621L3151,2619L3171,2567L3192,2547L3186,2497L3164,2485L3196,2481L3172,2431L3182,2417L3210,2416L3197,2399L3199,2397L3216,2402L3233,2389L3316,2433L3314,2531L3303,2565L3271,2595L3243,2664L3240,2662L3224,2684L3214,2684Z","cx":3244,"cy":2556},"GO":{"d":"M2303,1841L2290,1884L2379,1927L2403,1879L2417,1896L2430,1881L2453,1906L2455,1932L2462,1913L2469,1929L2495,1915L2495,1931L2528,1931L2542,1947L2547,1910L2567,1929L2632,1897L2661,1897L2664,1882L2669,1899L2694,1892L2673,1910L2678,1935L2701,1928L2681,1943L2689,1959L2679,2010L2714,2035L2703,2042L2696,2094L2677,2093L2656,2070L2656,2105L2615,2106L2624,2132L2613,2155L2626,2189L2577,2204L2578,2159L2568,2150L2492,2150L2484,2205L2579,2206L2564,2250L2596,2298L2556,2345L2582,2361L2572,2383L2581,2406L2516,2450L2486,2433L2421,2431L2378,2464L2363,2449L2288,2470L2266,2510L2239,2529L2237,2550L2082,2469L2037,2464L2032,2454L2052,2435L2019,2431L2022,2399L2005,2353L2027,2286L2065,2253L2059,2230L2101,2189L2137,2182L2170,2107L2213,2092L2238,2009L2234,1973L2260,1931L2272,1871L2303,1841Z","cx":2290,"cy":2196},"MA":{"d":"M2631,1541L2606,1499L2607,1498L2606,1495L2611,1491L2609,1488L2616,1485L2627,1440L2652,1432L2660,1407L2646,1390L2604,1405L2551,1344L2560,1329L2536,1320L2557,1298L2571,1227L2560,1153L2523,1126L2476,1117L2439,1135L2549,1056L2600,986L2604,956L2649,884L2641,869L2664,853L2663,824L2678,815L2684,783L2673,777L2690,768L2690,722L2708,705L2710,724L2719,705L2713,718L2718,715L2714,722L2718,728L2723,717L2724,722L2720,728L2726,727L2730,713L2736,714L2729,724L2732,740L2740,737L2745,726L2748,735L2753,729L2751,736L2752,738L2750,740L2751,741L2762,729L2754,743L2754,753L2758,754L2758,745L2762,749L2767,731L2771,732L2767,774L2789,753L2789,746L2791,741L2791,740L2791,739L2791,738L2790,739L2791,736L2792,737L2791,743L2791,749L2792,750L2792,751L2792,751L2792,750L2792,750L2792,748L2794,749L2795,748L2795,746L2794,745L2795,745L2795,745L2795,750L2794,752L2819,742L2811,761L2836,762L2822,767L2830,774L2819,781L2840,774L2836,780L2837,783L2840,785L2836,786L2841,786L2843,780L2847,784L2840,790L2851,794L2850,814L2866,850L2896,840L2888,846L2902,848L2900,857L2935,822L2947,837L2977,837L3045,871L3108,872L3111,897L3097,919L3071,944L3043,945L2995,1023L3009,1048L2999,1079L3014,1118L2985,1163L2987,1205L3011,1234L3002,1267L2954,1284L2925,1270L2895,1276L2831,1339L2757,1367L2727,1461L2705,1493L2726,1548L2710,1626L2669,1617L2642,1573L2650,1548L2631,1541Z","cx":2775,"cy":1184},"MG":{"d":"M2878,2024L2919,2034L2909,2065L2943,2081L2977,2065L3082,2119L3110,2110L3153,2150L3156,2174L3216,2167L3230,2180L3262,2180L3298,2211L3269,2258L3258,2257L3257,2290L3238,2288L3229,2306L3224,2341L3263,2373L3263,2398L3233,2389L3216,2402L3199,2397L3210,2416L3182,2417L3172,2431L3196,2481L3164,2485L3186,2497L3193,2546L3171,2567L3151,2619L3114,2621L3106,2633L3109,2664L3093,2694L3076,2697L3083,2704L3055,2762L3065,2771L2987,2809L2920,2806L2763,2865L2732,2858L2725,2886L2671,2890L2672,2876L2658,2870L2665,2854L2635,2831L2647,2813L2635,2808L2645,2801L2638,2784L2655,2747L2640,2736L2607,2742L2585,2688L2599,2664L2580,2645L2583,2617L2563,2596L2525,2599L2522,2612L2488,2603L2488,2614L2432,2616L2425,2644L2416,2616L2394,2630L2391,2597L2362,2591L2329,2594L2273,2578L2222,2608L2225,2548L2238,2549L2239,2529L2266,2510L2288,2470L2363,2449L2378,2464L2421,2431L2486,2433L2516,2450L2581,2406L2572,2383L2582,2361L2556,2339L2596,2298L2564,2250L2579,2202L2626,2189L2613,2155L2624,2132L2616,2105L2656,2105L2650,2079L2659,2070L2677,2093L2704,2090L2693,2119L2700,2126L2843,2034L2878,2024Z","cx":2786,"cy":2457},"MS":{"d":"M1944,2392L2022,2404L2022,2434L2052,2435L2032,2454L2037,2464L2074,2466L2124,2498L2216,2533L2229,2556L2217,2573L2221,2610L2165,2663L2162,2693L2137,2714L2138,2735L2118,2751L2118,2771L2086,2814L1970,2895L1958,2932L1934,2946L1919,2998L1904,3007L1867,2981L1802,2999L1783,2963L1776,2866L1753,2828L1718,2828L1701,2807L1657,2830L1546,2809L1563,2694L1552,2690L1559,2674L1547,2670L1529,2617L1559,2597L1533,2576L1575,2501L1568,2490L1588,2424L1598,2423L1565,2356L1598,2390L1638,2373L1668,2331L1696,2333L1728,2317L1823,2365L1876,2347L1903,2366L1924,2361L1960,2323L1960,2366L1943,2375L1936,2388L1944,2392Z","cx":1863,"cy":2640},"MT":{"d":"M1317,1930L1344,1890L1346,1862L1374,1834L1342,1784L1341,1759L1360,1740L1355,1712L1319,1711L1308,1699L1203,1699L1211,1642L1198,1615L1210,1563L1195,1527L1205,1524L1210,1492L1199,1480L1505,1479L1518,1413L1509,1384L1532,1335L1580,1421L1585,1476L1623,1493L1665,1540L2297,1584L2260,1666L2247,1743L2259,1843L2250,1861L2270,1888L2234,1973L2238,2009L2213,2092L2170,2107L2137,2182L2101,2189L2059,2230L2064,2255L2027,2286L2007,2330L2005,2369L2022,2404L1937,2392L1946,2370L1960,2366L1960,2323L1924,2362L1899,2366L1876,2347L1823,2365L1728,2317L1696,2333L1668,2331L1638,2373L1598,2390L1572,2353L1541,2349L1507,2318L1500,2270L1515,2226L1336,2227L1329,2147L1298,2111L1329,2110L1326,2062L1305,2019L1315,1999L1307,1980L1283,1968L1315,1945L1317,1930Z","cx":1803,"cy":1875},"PA":{"d":"M2602,681L2610,678L2612,686L2623,674L2633,692L2635,683L2643,679L2639,698L2663,686L2656,697L2663,707L2667,699L2668,705L2675,708L2686,689L2680,700L2678,717L2688,699L2685,713L2688,716L2698,702L2695,707L2695,720L2689,728L2690,768L2673,777L2684,783L2678,815L2663,824L2664,853L2641,869L2649,884L2604,956L2600,986L2552,1052L2439,1135L2474,1139L2498,1160L2483,1176L2489,1195L2470,1218L2474,1238L2452,1245L2447,1266L2395,1293L2397,1323L2378,1354L2400,1380L2394,1419L2358,1484L2315,1529L2297,1584L1666,1541L1623,1493L1585,1476L1580,1421L1499,1270L1520,1247L1694,842L1729,803L1673,821L1668,802L1639,791L1626,772L1604,772L1549,740L1544,711L1530,723L1504,703L1461,634L1459,477L1498,473L1496,454L1514,440L1545,450L1546,434L1590,430L1613,400L1634,397L1662,415L1695,404L1743,415L1748,396L1725,373L1741,347L1798,358L1840,342L1858,380L1860,422L1902,426L1924,451L1987,476L1989,507L2018,532L2012,562L2035,614L2058,630L2063,658L2075,659L2084,705L2115,723L2154,707L2156,678L2201,612L2254,581L2276,540L2303,529L2312,566L2349,563L2377,598L2422,623L2472,626L2466,650L2512,671L2521,655L2527,668L2540,653L2561,676L2565,659L2592,667L2592,678L2599,666L2602,681Z","cx":2120,"cy":971},"PB":{"d":"M3552,1203L3559,1215L3538,1234L3527,1271L3547,1269L3551,1282L3590,1273L3601,1298L3622,1281L3620,1260L3628,1263L3619,1245L3632,1229L3673,1249L3770,1248L3773,1275L3781,1290L3782,1296L3780,1298L3780,1301L3787,1315L3784,1355L3759,1340L3721,1344L3716,1365L3630,1382L3610,1411L3575,1430L3555,1396L3540,1397L3559,1378L3558,1358L3575,1348L3551,1327L3470,1383L3450,1383L3443,1368L3420,1375L3408,1361L3426,1329L3403,1299L3418,1278L3427,1241L3419,1239L3433,1233L3466,1252L3502,1219L3552,1203Z","cx":3603,"cy":1321},"PE":{"d":"M3557,1331L3575,1348L3558,1358L3559,1378L3540,1397L3555,1396L3575,1430L3610,1411L3630,1382L3716,1365L3721,1344L3759,1340L3783,1354L3783,1401L3752,1491L3681,1485L3658,1496L3649,1517L3612,1534L3587,1527L3579,1538L3501,1486L3454,1533L3449,1502L3431,1500L3431,1485L3415,1499L3400,1479L3359,1471L3344,1453L3294,1483L3288,1505L3260,1506L3252,1535L3224,1548L3209,1545L3220,1516L3195,1484L3153,1471L3227,1414L3232,1384L3219,1376L3215,1347L3231,1339L3317,1331L3372,1386L3408,1362L3420,1375L3443,1368L3450,1383L3470,1383L3526,1337L3557,1331Z","cx":3480,"cy":1442},"PI":{"d":"M3106,877L3163,900L3147,937L3164,971L3163,1004L3177,1004L3179,1017L3164,1087L3195,1118L3197,1204L3213,1265L3248,1280L3231,1339L3215,1347L3219,1376L3232,1384L3227,1414L3151,1471L3107,1524L3067,1529L3017,1562L2997,1541L2967,1542L2948,1526L2912,1555L2930,1600L2885,1663L2865,1655L2842,1663L2808,1693L2777,1682L2759,1662L2763,1645L2745,1612L2725,1627L2709,1622L2726,1548L2705,1493L2727,1461L2753,1375L2768,1358L2831,1339L2893,1277L2925,1270L2954,1284L3002,1267L3011,1234L2987,1205L2985,1163L3014,1118L2999,1079L3009,1048L2995,1023L3043,945L3071,944L3108,902L3106,877Z","cx":3049,"cy":1312},"PR":{"d":"M2119,2853L2196,2867L2247,2896L2320,2890L2345,2911L2360,2943L2356,2985L2395,3034L2385,3067L2455,3067L2458,3108L2487,3098L2493,3120L2509,3123L2454,3198L2398,3200L2361,3224L2324,3201L2287,3213L2263,3200L2249,3224L2198,3232L2200,3262L2182,3272L2172,3258L2137,3260L2107,3244L1975,3229L1948,3197L1942,3162L1922,3162L1922,3149L1890,3169L1875,3159L1907,3036L1899,3013L1922,2995L1934,2946L1958,2932L1970,2895L2031,2857L2103,2867L2119,2853Z","cx":2147,"cy":3052},"RJ":{"d":"M2848,2929L2828,2937L2813,2925L2820,2900L2872,2883L2882,2868L2837,2861L2821,2839L2920,2806L2987,2809L3065,2771L3055,2762L3083,2704L3076,2697L3103,2677L3119,2687L3118,2712L3192,2730L3180,2751L3189,2800L3095,2853L3092,2872L3104,2875L3088,2890L3090,2900L2989,2898L2986,2868L2968,2878L2971,2888L2980,2895L2967,2902L2952,2902L2941,2908L2926,2906L2939,2905L2912,2890L2879,2905L2864,2903L2865,2892L2833,2905L2829,2918L2829,2923L2848,2929Z","cx":3083,"cy":2808},"RN":{"d":"M3550,1083L3604,1109L3673,1104L3720,1116L3742,1148L3770,1249L3673,1249L3632,1229L3619,1245L3628,1263L3620,1260L3622,1281L3601,1298L3590,1273L3551,1282L3547,1269L3527,1271L3557,1205L3502,1219L3466,1252L3422,1235L3434,1208L3465,1189L3512,1093L3550,1083Z","cx":3604,"cy":1197},"RO":{"d":"M728,1588L695,1581L724,1563L733,1541L776,1541L793,1559L812,1541L827,1547L826,1532L846,1526L860,1543L885,1499L952,1495L952,1474L973,1458L971,1433L988,1432L1003,1397L1075,1398L1108,1438L1124,1439L1126,1460L1141,1459L1147,1480L1168,1487L1187,1469L1210,1492L1205,1524L1195,1527L1210,1563L1198,1615L1211,1642L1203,1699L1308,1699L1319,1711L1354,1711L1360,1740L1341,1759L1342,1784L1374,1834L1346,1862L1345,1888L1325,1908L1315,1945L1284,1969L1254,1949L1175,1955L1143,1911L1084,1901L1047,1861L1034,1868L987,1843L938,1850L898,1809L893,1816L885,1801L866,1799L861,1771L844,1771L849,1753L834,1725L845,1699L828,1648L841,1622L833,1570L815,1584L795,1573L728,1588Z","cx":1021,"cy":1673},"RR":{"d":"M1371,265L1353,331L1362,364L1379,372L1376,414L1425,461L1460,474L1459,574L1349,574L1314,651L1323,671L1301,687L1280,686L1263,656L1247,650L1214,663L1195,730L1209,758L1169,740L1155,712L1110,676L1131,665L1141,633L1108,549L1114,491L1081,441L1091,406L1028,380L1023,356L994,362L961,350L967,323L943,289L948,244L886,176L912,190L950,187L969,213L997,209L997,198L1014,216L1021,202L1043,205L1041,216L1066,239L1088,231L1087,197L1105,198L1117,182L1166,190L1202,175L1225,146L1256,148L1295,107L1282,78L1332,73L1353,101L1337,149L1384,163L1379,182L1399,206L1365,242L1371,265Z","cx":1238,"cy":427},"RS":{"d":"M2121,3757L2100,3785L2118,3803L2116,3816L2095,3836L2064,3912L1988,3975L1977,3961L1987,3916L2004,3910L2017,3879L2030,3873L2039,3889L2053,3886L2068,3853L2058,3832L2065,3814L2048,3827L2055,3839L2021,3866L1991,3859L1966,3838L1956,3808L1922,3793L1875,3746L1812,3726L1780,3683L1738,3708L1737,3679L1661,3610L1635,3609L1621,3629L1580,3619L1645,3564L1682,3512L1699,3507L1751,3436L1768,3443L1761,3424L1832,3385L1827,3378L1841,3377L1853,3353L1905,3345L1915,3325L1944,3313L1966,3322L1993,3309L1999,3322L2026,3308L2031,3322L2109,3327L2136,3352L2161,3349L2214,3383L2258,3439L2341,3446L2348,3462L2325,3473L2318,3507L2323,3509L2302,3525L2315,3535L2307,3526L2323,3520L2346,3533L2244,3711L2117,3816L2124,3794L2116,3784L2139,3787L2180,3762L2180,3748L2199,3746L2205,3707L2224,3704L2225,3690L2250,3675L2249,3635L2263,3648L2261,3619L2228,3644L2216,3639L2219,3627L2213,3624L2209,3627L2206,3626L2203,3619L2198,3619L2199,3604L2193,3600L2193,3630L2201,3630L2212,3638L2197,3647L2193,3675L2184,3665L2179,3709L2162,3714L2162,3727L2133,3731L2122,3769L2121,3757Z","cx":1951,"cy":3641},"SC":{"d":"M1964,3294L1966,3225L2001,3225L2020,3239L2054,3234L2137,3260L2172,3258L2182,3272L2200,3262L2198,3232L2249,3224L2263,3200L2287,3213L2324,3201L2361,3224L2398,3200L2449,3196L2464,3222L2446,3273L2455,3278L2453,3312L2466,3314L2452,3325L2461,3333L2449,3348L2456,3389L2440,3451L2346,3533L2322,3520L2307,3526L2315,3535L2312,3534L2304,3520L2322,3512L2325,3473L2348,3462L2341,3446L2258,3439L2214,3383L2161,3349L2136,3352L2109,3327L2031,3322L2026,3308L1999,3322L1993,3309L1981,3320L1948,3317L1964,3294ZM2459,3346L2477,3345L2456,3384L2459,3346Z","cx":2321,"cy":3368},"SE":{"d":"M3481,1553L3575,1598L3633,1650L3588,1674L3524,1755L3480,1739L3480,1719L3454,1688L3457,1671L3495,1669L3491,1643L3503,1633L3494,1600L3478,1592L3481,1553Z","cx":3554,"cy":1659},"SP":{"d":"M2691,2986L2687,2999L2667,2997L2614,3028L2527,3097L2520,3116L2502,3131L2509,3123L2493,3120L2487,3098L2455,3105L2463,3074L2455,3067L2385,3067L2395,3034L2356,2985L2360,2943L2349,2916L2320,2890L2247,2896L2196,2867L2152,2867L2115,2852L2103,2867L2018,2860L2086,2814L2118,2771L2118,2751L2138,2735L2137,2714L2162,2693L2165,2663L2263,2582L2389,2596L2392,2629L2416,2616L2425,2644L2432,2616L2488,2614L2488,2603L2522,2612L2525,2599L2562,2596L2586,2622L2580,2645L2599,2666L2585,2688L2607,2742L2640,2736L2655,2747L2638,2784L2645,2801L2635,2808L2647,2813L2635,2831L2665,2854L2658,2870L2672,2876L2670,2890L2725,2886L2732,2858L2763,2865L2820,2840L2837,2861L2882,2867L2872,2883L2821,2898L2812,2922L2828,2937L2810,2933L2762,2962L2762,2982L2720,2976L2691,2986ZM2773,2991L2757,2989L2766,2981L2769,2972L2779,2978L2773,2987L2779,2994L2775,2996L2773,2991Z","cx":2395,"cy":2856},"TO":{"d":"M2627,1440L2601,1506L2616,1507L2631,1541L2650,1548L2642,1573L2669,1617L2725,1627L2734,1617L2721,1644L2684,1665L2645,1729L2658,1752L2696,1762L2674,1763L2668,1787L2688,1790L2666,1804L2671,1834L2690,1848L2678,1858L2675,1895L2693,1893L2669,1899L2664,1882L2661,1897L2632,1897L2567,1929L2547,1910L2542,1947L2528,1931L2495,1931L2495,1915L2469,1929L2462,1913L2455,1932L2453,1906L2429,1880L2417,1896L2403,1879L2392,1888L2379,1927L2290,1884L2304,1840L2283,1855L2269,1886L2258,1882L2247,1745L2260,1666L2315,1529L2387,1438L2400,1380L2378,1354L2397,1323L2395,1293L2447,1266L2462,1235L2474,1238L2470,1218L2489,1195L2483,1176L2499,1162L2474,1139L2439,1137L2461,1119L2518,1124L2560,1153L2571,1227L2557,1298L2536,1320L2560,1329L2551,1344L2604,1405L2646,1390L2659,1401L2656,1427L2627,1440Z","cx":2470,"cy":1535},"DF":{"d":"M2578,2159L2578,2205L2484,2205L2492,2150L2568,2150L2578,2159Z","cx":2533,"cy":2182}};
+var UFN={AC:'Acre',AL:'Alagoas',AM:'Amazonas',AP:'Amapá',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MG:'Minas Gerais',MS:'Mato Grosso do Sul',MT:'Mato Grosso',PA:'Pará',PB:'Paraíba',PE:'Pernambuco',PI:'Piauí',PR:'Paraná',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RO:'Rondônia',RR:'Roraima',RS:'Rio Grande do Sul',SC:'Santa Catarina',SE:'Sergipe',SP:'São Paulo',TO:'Tocantins'};
+var REG_UF={AC:'Norte',AM:'Norte',AP:'Norte',PA:'Norte',RO:'Norte',RR:'Norte',TO:'Norte',AL:'Nordeste',BA:'Nordeste',CE:'Nordeste',MA:'Nordeste',PB:'Nordeste',PE:'Nordeste',PI:'Nordeste',RN:'Nordeste',SE:'Nordeste',DF:'Centro-Oeste',GO:'Centro-Oeste',MS:'Centro-Oeste',MT:'Centro-Oeste',ES:'Sudeste',MG:'Sudeste',RJ:'Sudeste',SP:'Sudeste',PR:'Sul',RS:'Sul',SC:'Sul'};
+var REGS=['Norte','Nordeste','Centro-Oeste','Sudeste','Sul'];
+var TERR={'Nordeste':['Nordeste'],'Sul + Sudeste':['Sul','Sudeste'],'Norte + Centro-Oeste':['Norte','Centro-Oeste']};
+var TERR_OF={Nordeste:'Nordeste',Sul:'Sul + Sudeste',Sudeste:'Sul + Sudeste',Norte:'Norte + Centro-Oeste','Centro-Oeste':'Norte + Centro-Oeste'};
+var ST={ni:'Não iniciado',tna:'Termo não aceito',ta:'Termo aceito',ep:'Em preenchimento',ea:'Em análise'};
+var STC={ni:'--s-ni',tna:'--s-tna',ta:'--s-ta',ep:'--s-ep',ea:'--s-ea'};
+var GRUPO={ni:'Não iniciado',tna:'Termo não aceito',ta:'Em andamento',ep:'Em andamento',ea:'Enviado ao MEC'};
+var ETAPA={ni:'Não acessou o termo',tna:'Recusou o termo',ta:'Parou no termo, falta indicar',ep:'Indicação em preenchimento',ea:'Indicação enviada ao MEC'};
+var GRP={ni:['ni'],tna:['tna'],and:['ta','ep'],ea:['ea']};
+var MARAJO=['1501105','1503101','1504505','1505809','1500305','1500701','1501808','1502806','1507706','1502004','1502509','1504901','1505700','1506302','1506401','1507904','1504000','1505205'];
+var CAP=['1100205','1200401','1302603','1400100','1501402','1600303','1721000','2111300','2211001','2304400','2408102','2507507','2611606','2704302','2800308','2927408','5002704','5103403','5208707','3106200','3205300','3304557','3550308','4106902','4205407','4314902'];
+var GEO={cap:'Capital',maj:'Arquipélago do Marajó'};
+var ESC={q:'Possui escola quilombola',i:'Possui escola indígena',c:'Possui escola do campo',r:'Possui escola rural',mr:'Majoritariamente rural (mais de 50% das escolas)',as:'Possui escola em assentamento',tr:'Possui escola em comunidade tradicional'};
+
+var ROWS=[],CFG={},META={},FLAGC={};
+var S={tab:'M',admin:false,terr:'',reg:[],uf:[],st:[],q:'',lista:null,geo:[],esc:[],page:1};
+
+function norm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+var fmt=function(n){return Number(n).toLocaleString('pt-BR');};
+var pct=function(a,b){return b?(a/b*100):0;};
+var pf=function(a,b){return pct(a,b).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';};
+function cssv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+function brData(iso){return iso?iso.split('-').reverse().join('/'):'';}
+
+/* ---------- carga ---------- */
+function carregar(primeira){
+  var b='?_='+Date.now();
+  var get=function(f){return fetch('saida/'+f+b,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(f);return r.json();});};
+  return Promise.all([get('redes.json'),get('config.json'),get('meta.json')]).then(function(res){
+    var mudou=META.relatorio_iso&&META.relatorio_iso!==res[2].relatorio_iso;
+    CFG=res[1];META=res[2];
+    ROWS=res[0].map(function(r){var reg=REG_UF[r.uf];return{esf:r.e,uf:r.uf,mun:r.m||'',ibge:r.i||'',st:r.s,dt:r.a||'',env:r.d||'',reg:reg,terr:TERR_OF[reg],fl:r.f||[],norm:norm(r.m)};});
+    FLAGC={};ROWS.forEach(function(r){if(r.esf==='M')r.fl.forEach(function(f){FLAGC[f]=(FLAGC[f]||0)+1;});});
+    if(primeira)return checarAdmin();
+    if(mudou)toast('Dados atualizados: '+META.atualizado_em);
+  }).then(function(){
+    document.querySelectorAll('main > [hidden]').forEach(function(e){e.hidden=false;});
+    document.getElementById('carregando').hidden=true;
+    render();
+  }).catch(function(e){
+    document.getElementById('carregando').innerHTML='<strong>Não foi possível carregar os dados</strong><span>Tente recarregar a página em alguns instantes.</span>';
+    console.error(e);
+  });
+}
+function checarAdmin(){
+  var k=new URLSearchParams(location.search).get('admin');
+  if(!k||!CFG.admin_hash||!window.crypto||!crypto.subtle)return Promise.resolve();
+  return crypto.subtle.digest('SHA-256',new TextEncoder().encode(k)).then(function(h){
+    var hex=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    if(hex===CFG.admin_hash){S.admin=true;document.getElementById('tab-E').hidden=false;document.getElementById('badge-admin').hidden=false;}
+  });
+}
+
+function base(){return ROWS.filter(function(r){return r.esf===S.tab;});}
+/* skip: qual filtro ignorar para que cards/regiões/mapa mostrem a distribuição */
+function pass(r,skip){
+  var semReg=skip==='reg'||skip==='regst', semUf=skip==='uf'||skip==='ust', semSt=skip==='st'||skip==='regst'||skip==='ust';
+  if(!semReg){ if(S.terr&&TERR[S.terr].indexOf(r.reg)<0)return false; if(S.reg.length&&S.reg.indexOf(r.reg)<0)return false; }
+  if(!semUf&&S.uf.length&&S.uf.indexOf(r.uf)<0)return false;
+  if(!semSt&&S.st.length&&S.st.indexOf(r.st)<0)return false;
+  if(S.q){var q=norm(S.q);if(r.norm.indexOf(q)<0&&r.ibge.indexOf(q)<0&&norm(UFN[r.uf]).indexOf(q)<0&&r.uf.toLowerCase()!==q)return false;}
+  if(S.lista&&r.esf==='M'&&!S.lista[r.ibge])return false;
+  if(S.admin&&S.tab==='M'){
+    if(S.geo.length){var ok=(S.geo.indexOf('cap')>=0&&CAP.indexOf(r.ibge)>=0)||(S.geo.indexOf('maj')>=0&&MARAJO.indexOf(r.ibge)>=0);if(!ok)return false;}
+    if(S.esc.length){var ok2=S.esc.some(function(f){return r.fl.indexOf(f)>=0;});if(!ok2)return false;}
+  }
+  return true;
+}
+function cnt(rows){var c={ni:0,tna:0,ta:0,ep:0,ea:0,t:rows.length};rows.forEach(function(r){c[r.st]++;});c.and=c.ta+c.ep;return c;}
+
+/* ---------- filtros ---------- */
+function msel(id,label,opts,key){
+  var el=document.getElementById(id);var sel=S[key];
+  var txt=sel.length===0?label+': todos':(sel.length===1?((opts.filter(function(o){return o[0]===sel[0];})[0]||[0,sel[0]])[1]):label+': '+sel.length+' selecionados');
+  var d0=el.querySelector('.drop');var open=d0&&!d0.hidden;var sc=d0?d0.scrollTop:0;
+  el.innerHTML='<button type="button" class="'+(sel.length?'on':'')+'" aria-haspopup="true">'+esc(txt)+'</button><div class="drop"'+(open?'':' hidden')+'>'+opts.map(function(o){return '<label><input type="checkbox" value="'+esc(o[0])+'"'+(sel.indexOf(o[0])>=0?' checked':'')+'> '+esc(o[1])+'</label>';}).join('')+'</div>';
+  var d=el.querySelector('.drop');d.scrollTop=sc;
+  el.querySelector('button').onclick=function(e){e.stopPropagation();var was=d.hidden;closeDrops();d.hidden=!was;};
+  el.querySelectorAll('input').forEach(function(i){i.onchange=function(){var v=i.value;if(i.checked){if(S[key].indexOf(v)<0)S[key].push(v);}else{S[key]=S[key].filter(function(x){return x!==v;});}S.page=1;render();};});
+  d.onclick=function(e){e.stopPropagation();};
+}
+function closeDrops(){document.querySelectorAll('.drop').forEach(function(d){d.hidden=true;});}
+document.addEventListener('click',closeDrops);
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrops();});
+var tBusca;document.getElementById('busca').addEventListener('input',function(){var v=this.value;clearTimeout(tBusca);tBusca=setTimeout(function(){S.q=v;S.page=1;render();},200);});
+
+function renderFiltros(){
+  var t=document.getElementById('terr');
+  t.innerHTML=['','Nordeste','Sul + Sudeste','Norte + Centro-Oeste'].map(function(k){return '<button aria-pressed="'+(S.terr===k)+'" data-k="'+k+'">'+(k||'Todos')+'</button>';}).join('');
+  t.querySelectorAll('button').forEach(function(b){b.onclick=function(){S.terr=b.dataset.k;S.reg=S.reg.filter(function(r){return !S.terr||TERR[S.terr].indexOf(r)>=0;});S.page=1;render();};});
+  msel('ms-reg','Região',REGS.filter(function(r){return !S.terr||TERR[S.terr].indexOf(r)>=0;}).map(function(r){return[r,r];}),'reg');
+  var ufs=Object.keys(UFN).filter(function(u){var rg=REG_UF[u];if(S.terr&&TERR[S.terr].indexOf(rg)<0)return false;if(S.reg.length&&S.reg.indexOf(rg)<0)return false;if(S.tab==='M'&&u==='DF')return false;return true;});
+  msel('ms-uf','UF',ufs.map(function(u){return[u,u+' · '+UFN[u]];}),'uf');
+  msel('ms-st','Status',Object.keys(ST).map(function(k){return[k,ST[k]];}),'st');
+  var showAdm=S.admin&&S.tab==='M';
+  document.getElementById('adm-row').hidden=!showAdm;
+  if(showAdm){
+    msel('ms-geo','Geo',Object.keys(GEO).map(function(k){return[k,GEO[k]];}),'geo');
+    msel('ms-esc','Rede com escola',Object.keys(ESC).map(function(k){return[k,ESC[k]+' ('+fmt(FLAGC[k]||0)+')'];}),'esc');
+  }
+  document.getElementById('busca').placeholder=S.tab==='M'?'Buscar município ou código IBGE':'Buscar UF';
+  document.getElementById('btn-lista').hidden=S.tab!=='M';
+  if(S.tab!=='M')document.getElementById('lista').classList.remove('open');
+  var ch=[];
+  if(S.terr)ch.push(['Território: '+S.terr,function(){S.terr='';}]);
+  S.reg.forEach(function(v){ch.push([v,function(){S.reg=S.reg.filter(function(x){return x!==v;});}]);});
+  S.uf.forEach(function(v){ch.push([v,function(){S.uf=S.uf.filter(function(x){return x!==v;});}]);});
+  S.st.forEach(function(v){ch.push([ST[v],function(){S.st=S.st.filter(function(x){return x!==v;});}]);});
+  if(S.q)ch.push(['Busca: '+S.q,function(){S.q='';document.getElementById('busca').value='';}]);
+  if(S.lista)ch.push(['Lista: '+fmt(Object.keys(S.lista).length)+' municípios',function(){S.lista=null;}]);
+  if(showAdm){S.geo.forEach(function(v){ch.push([GEO[v],function(){S.geo=S.geo.filter(function(x){return x!==v;});}]);});S.esc.forEach(function(v){ch.push([ESC[v],function(){S.esc=S.esc.filter(function(x){return x!==v;});}]);});}
+  var c=document.getElementById('chips');
+  if(!ch.length){c.innerHTML='<span class="sub">Nenhum filtro aplicado</span>';return;}
+  c.innerHTML='<span class="flbl" style="min-width:auto">Filtros ativos</span>'+ch.map(function(x,i){return '<span class="chip">'+esc(x[0])+'<button aria-label="Remover filtro" data-i="'+i+'">✕</button></span>';}).join('')+'<button class="btn ghost" id="limpar">Limpar filtros</button>';
+  c.querySelectorAll('.chip button').forEach(function(b){b.onclick=function(){ch[+b.dataset.i][1]();S.page=1;render();};});
+  document.getElementById('limpar').onclick=function(){S.terr='';S.reg=[];S.uf=[];S.st=[];S.q='';S.lista=null;S.geo=[];S.esc=[];S.page=1;document.getElementById('busca').value='';render();};
+}
+
+/* ---------- lista de municípios ---------- */
+function toggleLista(){document.getElementById('lista').classList.toggle('open');}
+function aplicarLista(){
+  var toks=document.getElementById('lista-txt').value.split(/[\n;,\t]+/).map(function(s){return s.trim();}).filter(Boolean);
+  var mun=ROWS.filter(function(r){return r.esf==='M';});var hit={},miss=[],amb=[];
+  toks.forEach(function(t){
+    var found=[];var dig=t.replace(/\D/g,'');
+    if(/^\d{6,7}$/.test(t)){found=mun.filter(function(r){return dig.length===7?r.ibge===dig:r.ibge.slice(0,6)===dig;});}
+    else{var p=t.split(/\s*[\/\-]\s*(?=[A-Za-z]{2}$)/);var n=norm(p[0]);var uf=p[1]?p[1].trim().toUpperCase():'';found=mun.filter(function(r){return r.norm===n&&(!uf||r.uf===uf);});if(!uf&&found.length>1)amb.push(t+' ('+found.map(function(r){return r.uf;}).join(', ')+')');}
+    if(found.length)found.forEach(function(r){hit[r.ibge]=1;});else miss.push(t);
+  });
+  S.lista=Object.keys(hit).length?hit:null;S.page=1;
+  var msg=fmt(Object.keys(hit).length)+' municípios encontrados';
+  if(miss.length)msg+=' · não encontrados: '+miss.join(', ');
+  if(amb.length)msg+=' · nome em mais de um estado (todos incluídos; use Nome/UF): '+amb.join('; ');
+  document.getElementById('lista-res').textContent=msg;
+  render();
+}
+function limparLista(){S.lista=null;document.getElementById('lista-txt').value='';document.getElementById('lista-res').textContent='';S.page=1;render();}
+
+/* ---------- cards de status ---------- */
+function toggleGroup(keys){var all=keys.every(function(k){return S.st.indexOf(k)>=0;});if(all)S.st=S.st.filter(function(k){return keys.indexOf(k)<0;});else keys.forEach(function(k){if(S.st.indexOf(k)<0)S.st.push(k);});S.page=1;render();}
+function renderCards(){
+  var rows=base().filter(function(r){return pass(r,'st');});var c=cnt(rows);
+  document.getElementById('hl-p').textContent=pf(c.ea,c.t);
+  document.getElementById('hl-t').innerHTML='das redes já enviaram a indicação ao MEC · <b class="num">'+fmt(c.ea)+'</b> de <b class="num">'+fmt(c.t)+'</b>';
+  document.getElementById('stack').innerHTML=['ea','ep','ta','tna','ni'].map(function(k){return '<i style="width:'+pct(c[k],c.t)+'%;background:var('+STC[k]+')" title="'+ST[k]+'"></i>';}).join('');
+  var on=function(keys){return keys.every(function(k){return S.st.indexOf(k)>=0;});};
+  var any=S.st.length>0;
+  var card=function(id,title,n,c2,hint,extra){var o=on(GRP[id]);return '<button class="card'+(o?' on':(any?' dim':''))+'" style="--c:var('+c2+')" data-g="'+id+'"><span class="t">'+title+'</span><span class="n num">'+fmt(n)+'</span><span class="p num">'+pf(n,c.t)+' das redes</span>'+(hint?'<span class="hint">'+hint+'</span>':'')+(extra||'')+'</button>';};
+  var subs='<span class="subs">'+['ta','ep'].map(function(k){var o=S.st.indexOf(k)>=0;return '<span role="button" tabindex="0" class="subc'+(o?' on':(any&&!on(['ta','ep'])?' dim':''))+'" style="--c:var('+STC[k]+')" data-s="'+k+'"><span><span class="dot"></span>'+ST[k]+' <small>· '+(k==='ta'?'parou no termo':'falta concluir a indicação')+'</small></span><b class="num">'+fmt(c[k])+'</b></span>';}).join('')+'</span>';
+  var ponto=S.tab==='M'?'Ponto Focal Municipal':'Articulador Estadual';
+  document.getElementById('cards').innerHTML=
+    card('ni','Não iniciado',c.ni,'--s-ni','Ainda não acessou o termo de adesão')+
+    card('tna','Termo não aceito',c.tna,'--s-tna','Recusou o termo de adesão')+
+    card('and','Em andamento',c.and,'--s-and','Aceitou o termo, mas ainda não enviou a indicação do '+ponto,subs)+
+    card('ea','Enviado ao MEC',c.ea,'--s-ea','Status "Em análise": processo concluído pela rede');
+  document.querySelectorAll('.card').forEach(function(b){b.onclick=function(){toggleGroup(GRP[b.dataset.g]);};});
+  document.querySelectorAll('.subc').forEach(function(b){var f=function(e){e.stopPropagation();toggleGroup([b.dataset.s]);};b.onclick=f;b.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();f(e);}};});
+}
+
+/* ---------- regiões ---------- */
+function renderRegs(){
+  document.getElementById('reg-sub').textContent=S.st.length?'% de redes da região no status filtrado · clique para filtrar':'% de redes que já enviaram ao MEC · clique para filtrar';
+  document.getElementById('regs').innerHTML=REGS.map(function(rg){
+    var c=cnt(base().filter(function(r){return r.reg===rg&&pass(r,'regst');}));
+    var sel=S.st.length?S.st.reduce(function(a,k){return a+c[k];},0):c.ea;
+    var o=S.reg.indexOf(rg)>=0;var outT=S.terr&&TERR[S.terr].indexOf(rg)<0;
+    return '<button class="reg'+(o?' on':((S.reg.length||outT)?' dim':''))+'" data-r="'+rg+'"><span class="nm">'+rg+'</span><span class="pc num">'+pf(sel,c.t)+' <small>'+(S.st.length?fmt(sel)+' no status filtrado':'enviado')+'</small></span><span class="mini">'+['ea','ep','ta','tna','ni'].map(function(k){return '<i style="width:'+pct(c[k],c.t)+'%;background:var('+STC[k]+')"></i>';}).join('')+'</span><span class="ni num"><b>'+fmt(c.ni)+'</b> não iniciaram · '+fmt(c.and)+' em andamento</span><span class="ni num">'+fmt(c.t)+' redes</span></button>';
+  }).join('');
+  document.querySelectorAll('.reg').forEach(function(b){b.onclick=function(){var v=b.dataset.r;if(S.reg.indexOf(v)>=0)S.reg=S.reg.filter(function(x){return x!==v;});else{S.reg.push(v);if(S.terr&&TERR[S.terr].indexOf(v)<0)S.terr='';}S.page=1;render();};});
+}
+
+/* ---------- mapa ---------- */
+var RAMP=['#E9F1E6','#C9E0C4','#A1C99C','#77AF73','#4D934B','#2F6E2F'];
+function rampColor(p){return RAMP[Math.min(RAMP.length-1,Math.floor(p/100*RAMP.length))];}
+var MAPBOX=(function(){var xs=[],ys=[];Object.keys(MAPA).forEach(function(u){MAPA[u].d.replace(/[MLZ]/g,' ').trim().split(/\s+/).forEach(function(p){var a=p.split(',');xs.push(+a[0]);ys.push(+a[1]);});});var x0=Math.min.apply(null,xs)-10,y0=Math.min.apply(null,ys)-10;return{x:x0,y:y0,w:Math.max.apply(null,xs)-x0+10,h:Math.max.apply(null,ys)-y0+10};})();
+function renderMapa(){
+  var rows=base().filter(function(r){return pass(r,'ust');});
+  var by={};rows.forEach(function(r){(by[r.uf]=by[r.uf]||[]).push(r);});
+  var B=MAPBOX;var svg='<svg style="font-size:'+Math.round(B.w/42)+'px" viewBox="'+B.x+' '+B.y+' '+B.w+' '+B.h+'" role="img" aria-label="Mapa do Brasil por UF">';var labels='';
+  Object.keys(MAPA).forEach(function(u){
+    var c=cnt(by[u]||[]);var has=c.t>0;var num=S.st.length?S.st.reduce(function(a,k){return a+c[k];},0):c.ea;var p=pct(num,c.t);
+    var o=S.uf.indexOf(u)>=0;var dim=(S.uf.length&&!o)||!has;
+    var tip=has?'<b>'+UFN[u]+'</b><br>'+pf(num,c.t)+(S.st.length?' no status filtrado ('+fmt(num)+')':' enviado ao MEC')+'<br>'+fmt(c.ni)+' não iniciadas · '+fmt(c.and)+' em andamento<br>'+fmt(c.t)+' redes':'<b>'+UFN[u]+'</b><br>'+(S.tab==='M'&&u==='DF'?'Sem rede municipal':'Fora do filtro atual');
+    svg+='<path d="'+MAPA[u].d+'" fill="'+(has?rampColor(p):cssv('--surface-2'))+'" class="'+(o?'on':'')+(dim?' dim':'')+'" data-u="'+u+'" data-t="'+esc(tip)+'"></path>';
+    if(['DF','SE','AL','PB','RN','ES','RJ'].indexOf(u)<0)labels+='<text x="'+MAPA[u].cx+'" y="'+MAPA[u].cy+'" text-anchor="middle" dominant-baseline="middle" style="fill:'+(p>=50&&has?'#fff':'#1C1C1C')+'">'+u+'</text>';
+  });
+  document.getElementById('map-svg').innerHTML=svg+labels+'</svg>';
+  document.getElementById('map-sub').textContent=S.st.length?'Cor = % das redes da UF no status filtrado · clique na UF para filtrar':'Cor = % enviado ao MEC · clique na UF para filtrar';
+  document.getElementById('grad').innerHTML=RAMP.map(function(c){return '<i style="background:'+c+'"></i>';}).join('');
+  var tip=document.getElementById('tip');
+  document.querySelectorAll('#map-svg path').forEach(function(p){
+    p.onmousemove=function(e){tip.innerHTML=p.dataset.t;tip.style.display='block';tip.style.left=Math.min(e.clientX+14,innerWidth-250)+'px';tip.style.top=(e.clientY+14)+'px';};
+    p.onmouseleave=function(){tip.style.display='none';};
+    p.onclick=function(){var u=p.dataset.u;if(S.tab==='M'&&u==='DF')return;if(S.uf.indexOf(u)>=0)S.uf=S.uf.filter(function(x){return x!==u;});else S.uf.push(u);S.page=1;render();};
+  });
+}
+
+/* ---------- curva de evolução ---------- */
+function dia(iso){var p=iso.split('-');return Date.UTC(+p[0],+p[1]-1,+p[2]);}
+function renderCurva(){
+  var el=document.getElementById('curva-svg');
+  var rows=base().filter(function(r){return pass(r,'st')&&r.st==='ea'&&r.env;});
+  var fim=dia(META.relatorio_iso.slice(0,10));
+  if(!rows.length){el.innerHTML='<div class="lock"><strong>Nenhuma rede enviada ao MEC neste filtro</strong></div>';return;}
+  var ini=Math.min.apply(null,rows.map(function(r){return dia(r.env);}))-864e5;
+  var prazoIso=S.tab==='M'?CFG.prazo_municipal:CFG.prazo_estadual;var pz=prazoIso?dia(prazoIso):null;
+  var ate=fim;if(pz&&pz>fim&&pz-fim<=21*864e5)ate=pz;
+  var days=Math.max(1,Math.round((ate-ini)/864e5));var nHoje=Math.round((fim-ini)/864e5);
+  var byDay={};rows.forEach(function(r){var k=Math.round((dia(r.env)-ini)/864e5);byDay[k]=(byDay[k]||0)+1;});
+  var pts=[],acc=0;for(var i=0;i<=nHoje;i++){acc+=byDay[i]||0;pts.push([i,acc]);}
+  var total=acc;
+  var W=620,H=280,L=48,R=16,T=18,B=34;var ymax=Math.max(5,total);var mag=Math.pow(10,Math.floor(Math.log10(ymax)));var step=Math.ceil(ymax/4/mag)*mag;ymax=step*4;
+  var X=function(i){return L+(W-L-R)*i/days;},Y=function(v){return T+(H-T-B)*(1-v/ymax);};
+  var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Curva acumulada de redes enviadas ao MEC">';
+  for(var g=0;g<=4;g++){var v=step*g;s+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v)+'" y2="'+Y(v)+'"/><text class="ax" x="'+(L-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+fmt(v)+'</text>';}
+  var passo=Math.max(1,Math.ceil(days/6));var ultX=-99;
+  for(var t=0;t<=days;t+=passo){s+='<text class="ax" x="'+X(t)+'" y="'+(H-12)+'" text-anchor="middle">'+new Date(ini+t*864e5).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',timeZone:'UTC'})+'</text>';ultX=t;}
+  if(pz&&pz>=ini&&pz<=ate){var pi=Math.round((pz-ini)/864e5);s+='<line x1="'+X(pi)+'" x2="'+X(pi)+'" y1="'+T+'" y2="'+(H-B)+'" stroke="'+cssv('--s-ni')+'" stroke-dasharray="4 4"/><text class="ax" x="'+(X(pi)-4)+'" y="'+(T+10)+'" text-anchor="end" style="fill:'+cssv('--s-ni')+'">prazo '+brData(prazoIso).slice(0,5)+'</text>';}
+  var ea=cssv('--s-ea');
+  var line=pts.map(function(p,i){return (i?'L':'M')+X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1);}).join('');
+  s+='<path d="'+line+'L'+X(nHoje)+','+Y(0)+'L'+X(0)+','+Y(0)+'Z" fill="'+ea+'" opacity=".12"/>';
+  s+='<path d="'+line+'" fill="none" stroke="'+ea+'" stroke-width="2.5" stroke-linejoin="round"/>';
+  s+='<circle cx="'+X(nHoje)+'" cy="'+Y(total)+'" r="5.5" fill="'+ea+'" stroke="'+cssv('--surface')+'" stroke-width="2"/>';
+  s+='<text x="'+(X(nHoje)-10)+'" y="'+(Y(total)-12)+'" text-anchor="end" style="font-weight:700;fill:'+cssv('--fg')+'" font-size="13">'+fmt(total)+' em '+brData(META.relatorio_iso.slice(0,10)).slice(0,5)+'</text>';
+  pts.forEach(function(p){s+='<rect x="'+(X(p[0])-(W-L-R)/days/2)+'" y="'+T+'" width="'+((W-L-R)/days)+'" height="'+(H-T-B)+'" fill="transparent" data-t="'+new Date(ini+p[0]*864e5).toLocaleDateString('pt-BR',{timeZone:'UTC'})+': '+fmt(p[1])+' redes"></rect>';});
+  el.innerHTML=s+'</svg>';
+  var tip=document.getElementById('tip');
+  el.querySelectorAll('rect').forEach(function(r){r.onmousemove=function(e){tip.textContent=r.dataset.t;tip.style.display='block';tip.style.left=Math.min(e.clientX+14,innerWidth-250)+'px';tip.style.top=(e.clientY+14)+'px';};r.onmouseleave=function(){tip.style.display='none';};});
+}
+
+/* ---------- tabela e exportação ---------- */
+function liberado(){return S.admin||S.terr||S.reg.length||S.uf.length;}
+function filtradas(){return base().filter(function(r){return pass(r);});}
+function renderTabela(){
+  var rows=filtradas();
+  document.getElementById('t-count').textContent=fmt(rows.length)+' redes no filtro atual';
+  var lib=liberado();
+  ['ex-x','ex-c'].forEach(function(id){var b=document.getElementById(id);b.disabled=!lib||!rows.length;b.style.opacity=(lib&&rows.length)?1:.5;b.title=lib?'':'Aplique um filtro de Território, Região ou UF para baixar';});
+  var el=document.getElementById('tabela');
+  if(!lib){el.innerHTML='<div class="lock"><strong>Escolha um Território, Região ou UF para ver a lista de redes</strong><span>Os números acima já refletem os filtros. A lista e o download aparecem depois desse recorte.</span></div>';return;}
+  if(!rows.length){el.innerHTML='<div class="lock"><strong>Nenhuma rede neste filtro</strong></div>';return;}
+  var n=S.page*50;var M=S.tab==='M';
+  el.innerHTML='<div class="twrap"><table><thead><tr><th>UF</th><th>'+(M?'Município':'Rede')+'</th>'+(M?'<th>Cód. IBGE</th>':'')+'<th>Região</th><th>Território</th><th>Situação</th><th>Etapa</th><th>Termo aceito em</th></tr></thead><tbody>'+
+    rows.slice(0,n).map(function(r){return '<tr><td><b>'+r.uf+'</b></td><td>'+(M?esc(r.mun):'Rede estadual · '+UFN[r.uf])+'</td>'+(M?'<td class="num">'+r.ibge+'</td>':'')+'<td>'+r.reg+'</td><td>'+r.terr+'</td><td><span class="pill" style="--c:var('+STC[r.st]+')">'+GRUPO[r.st]+'</span></td><td class="etapa">'+ST[r.st]+' · '+ETAPA[r.st]+'</td><td class="num">'+(brData(r.dt)||'—')+'</td></tr>';}).join('')+
+    '</tbody></table></div>'+(rows.length>n?'<div class="more"><button class="btn" id="mais">Mostrar mais '+fmt(Math.min(50,rows.length-n))+' de '+fmt(rows.length-n)+' restantes</button></div>':'');
+  var m=document.getElementById('mais');if(m)m.onclick=function(){S.page++;renderTabela();};
+}
+function exportar(tipo){
+  if(!liberado())return;
+  var rows=filtradas();if(!rows.length)return;var M=S.tab==='M';
+  var cab=['UF','UF (nome)'].concat(M?['Município','Código IBGE']:['Rede']).concat(['Região','Território','Situação','Status SIMEC','Etapa','Termo aceito em']);
+  if(S.admin&&M)cab=cab.concat(['Capital','Marajó'],Object.keys(ESC).map(function(k){return ESC[k];}));
+  var linhas=rows.map(function(r){
+    var l=[r.uf,UFN[r.uf]].concat(M?[r.mun,r.ibge]:['Rede estadual']).concat([r.reg,r.terr,GRUPO[r.st],ST[r.st],ETAPA[r.st],brData(r.dt)]);
+    if(S.admin&&M)l=l.concat([CAP.indexOf(r.ibge)>=0?'Sim':'',MARAJO.indexOf(r.ibge)>=0?'Sim':''],Object.keys(ESC).map(function(k){return r.fl.indexOf(k)>=0?'Sim':'';}));
+    return l;
+  });
+  var dataArq=META.relatorio_iso.slice(0,16).replace('T','_').replace(/:/g,'h');
+  var nome='renedic_'+(M?'municipais':'estaduais')+'_'+dataArq;
+  if(tipo==='xlsx'){
+    if(!window.XLSX){toast('Não foi possível gerar o Excel agora. Tente o CSV.');return;}
+    var ws=XLSX.utils.aoa_to_sheet([cab].concat(linhas));
+    ws['!cols']=cab.map(function(c,i){return{wch:Math.min(45,Math.max(c.length,i===2?28:10)+2)};});
+    var info=XLSX.utils.aoa_to_sheet([['Painel Renedic'],['Dados atualizados em',META.atualizado_em],['Filtros aplicados',descFiltros()],['Redes',rows.length]]);
+    var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Redes');XLSX.utils.book_append_sheet(wb,info,'Sobre');
+    XLSX.writeFile(wb,nome+'.xlsx');
+  }else{
+    var q=function(v){v=String(v==null?'':v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+    var csv='﻿'+[cab].concat(linhas).map(function(l){return l.map(q).join(';');}).join('\r\n');
+    var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=nome+'.csv';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
+  }
+  toast('Baixando '+fmt(rows.length)+' redes');
+}
+function descFiltros(){
+  var p=[];if(S.terr)p.push('Território: '+S.terr);if(S.reg.length)p.push('Região: '+S.reg.join(', '));if(S.uf.length)p.push('UF: '+S.uf.join(', '));
+  if(S.st.length)p.push('Status: '+S.st.map(function(k){return ST[k];}).join(', '));if(S.q)p.push('Busca: '+S.q);if(S.lista)p.push('Lista de '+Object.keys(S.lista).length+' municípios');
+  if(S.geo.length)p.push(S.geo.map(function(k){return GEO[k];}).join(', '));if(S.esc.length)p.push(S.esc.map(function(k){return ESC[k];}).join(', '));
+  return p.join(' | ')||'Nenhum';
+}
+function toast(t){var e=document.getElementById('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(function(){e.style.display='none';},2800);}
+
+/* ---------- cabeçalho, aviso, prazo ---------- */
+function renderTopo(){
+  document.getElementById('stamp').textContent=META.atualizado_em||'—';
+  document.getElementById('c-M').textContent='('+fmt(ROWS.filter(function(r){return r.esf==='M';}).length)+')';
+  document.getElementById('c-E').textContent='('+ROWS.filter(function(r){return r.esf==='E';}).length+')';
+  document.getElementById('msg').textContent=CFG.mensagem||'';
+  var iso=S.tab==='M'?CFG.prazo_municipal:CFG.prazo_estadual;var el=document.getElementById('prazo');
+  if(!iso){el.innerHTML='';return;}
+  var h=new Date();var hoje=Date.UTC(h.getFullYear(),h.getMonth(),h.getDate());var dias=Math.round((dia(iso)-hoje)/864e5);
+  if(dias<0){el.className='prazo enc';el.innerHTML='<span class="d">Prazo encerrado</span><span class="l">em '+brData(iso)+'</span>';}
+  else if(dias===0){el.className='prazo';el.innerHTML='<span class="d">Último dia</span><span class="l">prazo até hoje,<br>'+brData(iso)+'</span>';}
+  else{el.className='prazo';el.innerHTML='<span class="d num">'+dias+'</span><span class="l">'+(dias===1?'dia restante':'dias restantes')+'<br>prazo até '+brData(iso)+'</span>';}
+}
+function setTab(t){if(t==='E'&&!S.admin)return;S.tab=t;S.uf=[];S.lista=null;S.geo=[];S.esc=[];S.q='';S.st=[];S.page=1;document.getElementById('busca').value='';['M','E'].forEach(function(k){document.getElementById('tab-'+k).setAttribute('aria-selected',k===t);});render();}
+function render(){renderTopo();renderFiltros();renderCards();renderRegs();renderMapa();renderCurva();renderTabela();}
+
+carregar(true);
+setInterval(function(){carregar(false);},10*60*1000); /* busca dados novos a cada 10 minutos */
+if(window.matchMedia)matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){if(ROWS.length)render();});
+</script>
+
+</body>
+</html>

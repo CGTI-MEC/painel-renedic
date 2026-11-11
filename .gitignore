@@ -1,0 +1,11 @@
+# NUNCA publicar: relatórios brutos (têm nomes de responsáveis),
+# base do Censo e o relatorio.txt (tem a chave de admin)
+brutos/
+referencia/
+relatorio.txt
+
+__pycache__/
+*.pyc
+~$*
+Thumbs.db
+desktop.ini
